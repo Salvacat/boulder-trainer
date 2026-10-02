@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Boulder Technique Trainer</title>
+    
+    <!-- PWA & Mobile Meta Tags -->
+    <meta name="description" content="Bouldering technique courses, movement concepts, and skill drills." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Trainer" />
+    
+    <!-- Icons & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/boulder-trainer/favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="/boulder-trainer/favicon.png" />
+    <link rel="apple-touch-icon" href="/boulder-trainer/apple-touch-icon.png" />
+    <link rel="manifest" href="/boulder-trainer/manifest.webmanifest" />
+  </head>
+  <body class="bg-slate-900 text-slate-800 antialiased selection:bg-emerald-500 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/boulder-trainer/sw.js').catch((err) => {
+            console.log('SW registration note:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

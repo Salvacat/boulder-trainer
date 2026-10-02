@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  }
+}
+
+/* Ensure smooth scrolling and prevent overscroll bounce on mobile */
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f172a;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: #f8fafc;
+}
