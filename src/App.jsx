@@ -1,297 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { Search, BookOpen, Dumbbell, Lightbulb, ChevronRight, ChevronDown, Map, Target, AlertTriangle, CheckCircle2, XCircle, Info, Play } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Search, BookOpen, Dumbbell, Lightbulb, ChevronRight, ChevronDown, 
+  Map, Target, AlertTriangle, CheckCircle2, XCircle, Info, Play, 
+  Star, Plus, Timer, Edit3, Users, QrCode, Cloud, Tag, X,
+  ShoppingBag, Sparkles, Filter, Check, Award
+} from 'lucide-react';
 
-// --- DATA MODEL ---
-const DATABASE = {
-  courses: [
-    {
-      id: 'c1',
-      title: 'Technique Course 1',
-      level: 'Beginner',
-      prerequisites: 'A few months of bouldering experience.',
-      target: 'Climbers wanting to learn basics, step cleanly, and improve via group motivation.',
-      days: [
-        {
-          day: 1,
-          title: 'Center of Gravity & Grip Types',
-          activities: [
-            'Intro & Briefing: Meet, discuss goals, experience, and injuries.',
-            'Warm-up: Swing exercises to mobilize, climb 1-2 easy routes.',
-            'Concept - Center of Gravity (CoG): Demonstrate how CoG shifts when lifting a leg or doing lunges.',
-            'Concept - Grip Types: Identify jugs, slopers, crimps, underclings. Discuss how grip direction dictates body position.',
-            'Application: Climb in the main hall. Focus on safe grip (no full crimps) and CoG.',
-            'Cool-down: 10-15 mins stretching.'
-          ]
-        },
-        {
-          day: 2,
-          title: 'Footwork & Body Positioning',
-          activities: [
-            'Review: Discuss last week and independent practice.',
-            'Warm-up: Focus on hips and legs. Climb yellow/green routes.',
-            'Concept - Foot Swaps: Demonstrate jumping, smearing, rolling, and side-by-side swaps.',
-            'Concept - Frontal vs. Turned-in: Compare energy costs. Frontal = good for slabs. Turned-in = saves energy on overhangs, increases reach.',
-            'Application: Climb routes purely frontally, then purely turned-in.',
-            'Cool-down: 10-15 mins stretching.'
-          ]
-        },
-        {
-          day: 3,
-          title: 'Route Reading & Dynamics',
-          activities: [
-            'Warm-up: Climb 5 easy routes applying previous techniques.',
-            'Concept - Static vs. Dynamic: Static = movement can be paused anytime. Dynamic = uses momentum (e.g., deadpoints, dynos).',
-            'Concept - Hooks: Demonstrate Heel-hook and Toe-hook applications.',
-            'Concept - Route Reading: Discuss hand/foot sequence before climbing. Did reality match the plan?',
-            'Application: Pair up, read a grade 2/3 route, discuss the most efficient path, and test it.',
-            'Cool-down: 10-15 mins stretching.'
-          ]
-        },
-        {
-          day: 4,
-          title: 'Application & Open Review',
-          activities: [
-            'Review: Address specific participant requests or struggles.',
-            'Warm-up: Easy grade 1 and 2 routes.',
-            'Application: Pair up in main hall on grade 3s. Mandatory route reading before every climb.',
-            'Trainer Role: Walk around, spot correct, and give individualized tips.',
-            'Closing: Cool-down, final feedback round, distribute feedback forms.'
-          ]
-        }
-      ]
-    },
-    {
-      id: 'c2',
-      title: 'Technique Course 2',
-      level: 'Intermediate',
-      prerequisites: 'Approx. 1 year experience, safely climbing grade 3.',
-      target: 'Climbers wanting to tackle harder routes with beautiful technique, not just power.',
-      topics: [
-        'Advanced Footwork: Heel hooks, Toe hooks.',
-        'Advanced Grips: Crimps, Slopers, Volumes, Thumb catches (kontern).',
-        'Advanced Techniques: Mantles, Dynos, Flagging, Cross-overs, Gastons.',
-        'Tactics: Crux identification, Rest positions, Projecting, Spotting.',
-        'Injury Prevention: Warm-up/Cool-down, Compensatory training (e.g., Therabands).'
-      ]
-    },
-    {
-      id: 'c3',
-      title: 'Technique Course 3 (Advanced)',
-      level: 'Advanced',
-      prerequisites: '1+ years experience, safely climbing grade 4.',
-      target: 'Climbers training 2x/week, tackling heavy projects, or aiming for competitions.',
-      topics: [
-        'Special Techniques & Weakness Analysis.',
-        'Jumps, Dynos, and Competition-style coordination.',
-        'Off-the-wall training: Mobility & Compensatory training.',
-        'Distinction from pure strength courses (Moonboard, Campus board, etc.).'
-      ]
-    }
-  ],
-  concepts: [
-    {
-      id: 'cg', title: 'Center of Gravity (CoG)', category: 'Physics of Climbing',
-      desc: 'The point where the body\'s mass is concentrated. Proper shifting of the CoG over the base of support (feet) prevents barn-dooring and saves arm strength.',
-      drillIds: ['d3', 'd5', 'd6']
-    },
-    {
-      id: 'ti', title: 'Turning In (Eindrehen)', category: 'Positioning',
-      desc: 'Rotating the hip close to the wall. Extremely efficient for overhanging walls. It brings the CoG closer to the wall, increases reach, and reduces weight on the arms compared to climbing frontally.',
-      drillIds: ['d4', 'd10']
-    },
-    {
-      id: 'fl', title: 'Flagging (Ausflaggen)', category: 'Positioning',
-      desc: 'Extending one leg out to the side (without stepping on a hold) to shift the Center of Gravity and prevent the body from swinging (barn-dooring) when climbing with the same hand and foot. Variations: Standard, Inside/Reverse, Backstep.',
-      drillIds: ['d11', 'd12']
-    },
-    {
-      id: 'fw', title: 'Precision Footwork', category: 'Footwork',
-      desc: 'Placing the foot accurately on the best part of the hold (usually with the big toe) on the first try, without micro-adjusting, shuffling, or making noise.',
-      drillIds: ['d1', 'd2', 'd13']
-    },
-    {
-      id: 'fs', title: 'Foot Swaps', category: 'Footwork',
-      desc: '1. Jump swap (quick hop).\n2. Side-by-side (placing next to each other on large holds).\n3. Roll-over (rolling over the toe).\n4. Smear swap (using the wall above the hold to swap).',
-      drillIds: ['d7']
-    },
-    {
-      id: 'gr', title: 'Grip Types & Hold Nuances', category: 'Hand Technique',
-      desc: 'Jugs: Large, deep holds.\nSlopers: Round, friction-dependent. Keep CoG low.\nCrimps: Small edges. Teach "open hand" or "half-crimp". Warn against "full crimping".\nUnderclings: Pull up to generate downward force on feet.\nPockets: Isolate specific fingers.\nPinches: Require thumb engagement.',
-      drillIds: ['d14', 'd15']
-    },
-    {
-      id: 'rr', title: 'Route Reading & Tactics', category: 'Tactics',
-      desc: 'Visualizing the sequence before leaving the ground. Identifying hand/foot sequences, crux moves (Schlüsselstellen), and rest positions to save mental and physical energy on the wall.',
-      drillIds: ['d8', 'd16']
-    },
-    {
-      id: 'dy', title: 'Dynamic Movement', category: 'Physics of Climbing',
-      desc: 'Using momentum to reach distant holds. Includes Deadpointing (grabbing the hold at the exact moment of weightlessness) and Dynos (body completely leaves the wall).',
-      drillIds: ['d17', 'd18']
-    },
-    {
-      id: 'rs', title: 'Resting & Efficiency', category: 'Tactics',
-      desc: 'Finding positions on the wall to recover forearm strength. Involves straight arms, finding knee bars, stemming in dihedrals, and actively shaking out lactic acid.',
-      drillIds: ['d19', 'd20']
-    },
-    {
-      id: 'fr', title: 'Fear Management & Falling', category: 'Mental',
-      desc: 'Learning to trust the body, the mats, and the spotters. Overcoming the instinct to over-grip due to fear of falling.',
-      drillIds: ['d21', 'd22']
-    }
-  ],
-  drills: [
-    {
-      id: 'd1', title: 'Silent Feet (Ninja Feet)', focus: 'Precision Footwork',
-      setup: 'Any vertical or slightly overhanging wall. Grade 1 or 2.',
-      desc: 'A fundamental drill to cure "clumsy" feet. The climber must place their feet on the holds making absolutely zero noise.',
-      execution: ['Locate the next foothold with the eyes.', 'Watch the toe touch the hold perfectly.', 'Do not look away until the foot is fully weighted.', 'If it makes a sound, step down and repeat.'],
-      mistakes: ['Looking away early.', 'Smearing blindly up the wall.']
-    },
-    {
-      id: 'd2', title: 'Sticky Feet (Glue Feet)', focus: 'Foot Positioning & Trust',
-      setup: 'Easy to moderate boulder problem.',
-      desc: 'Teaches climbers to place their foot correctly the first time and trust the placement, rather than micro-adjusting.',
-      execution: ['Once the foot touches a hold, it is "glued".', 'No pivoting, shuffling, or bouncing.', 'If placement is bad, climb through it or step completely off to replace.'],
-      mistakes: ['Hesitation.', 'Placing the middle of the foot on the hold.']
-    },
-    {
-      id: 'd3', title: 'The Hover Hand (3-Second Rule)', focus: 'Balance & CoG',
-      setup: 'Slightly overhanging wall. Grade 2.',
-      desc: 'Forces perfect equilibrium before moving hands, eliminating momentum.',
-      execution: ['Initiate a move.', 'Hover hand 2-3 inches above the next hold.', 'Count "One, two, three" out loud.', 'Grab the hold.'],
-      mistakes: ['Slapping the hold early.', 'Barn-dooring due to bad feet.']
-    },
-    {
-      id: 'd4', title: 'Straight Arm Climbing', focus: 'Leg Drive & Twist',
-      setup: 'Overhanging wall with good jugs.',
-      desc: 'Teaches generating upward movement from legs and hips, not arms.',
-      execution: ['Keep arms completely straight (locked elbows).', 'Use legs to push hips up and twist torso to reach next hold.'],
-      mistakes: ['Bending elbows (T-Rex arms).', 'Climbing frontally.']
-    },
-    {
-      id: 'd5', title: 'The Carabiner Tail', focus: 'Visualizing CoG',
-      setup: 'Belt, string, and heavy carabiner.',
-      desc: 'The carabiner acts as a plumb line showing the center of gravity.',
-      execution: ['Tie string around waist, carabiner hangs down back.', 'Climb normally.', 'Watch if carabiner hangs over the supporting foot before stepping up.'],
-      mistakes: ['Moving limbs before the "tail" has shifted.']
-    },
-    {
-      id: 'd6', title: 'Climbing from the Legs (No Hands)', focus: 'Weight Transfer',
-      setup: 'Low angle slab or volume area.',
-      desc: 'Isolates leg drive and forces trust in friction.',
-      execution: ['Ascend the slab without using hands.', 'Take small steps, push hips forward.'],
-      mistakes: ['Leaning upper body away from wall (fear response).']
-    },
-    {
-      id: 'd7', title: 'Traverse Foot-Swap Marathon', focus: 'Foot Swaps',
-      setup: 'Long traverse wall.',
-      desc: 'Drills mechanics of foot swapping.',
-      execution: ['Traverse horizontally.', 'Perform a foot swap on every single hold.', 'Trainer calls out "Jump!", "Roll!", etc.'],
-      mistakes: ['Tangled feet.', 'Not leaving space for incoming foot.']
-    },
-    {
-      id: 'd8', title: 'Partner Route Planning', focus: 'Route Reading',
-      setup: 'Grade 2/3 boulder. Optional: Laser pointer.',
-      desc: 'Develops spatial awareness before climbing.',
-      execution: ['Pair up. Agree on detailed sequence.', 'Point to each hold and verbalize moves.', 'One climbs, other watches for adherence.'],
-      mistakes: ['Ignoring feet in the plan.', 'Forgetting sequence halfway.']
-    },
-    {
-      id: 'd10', title: 'Twist-Lock Traverse', focus: 'Turning In (Eindrehen)',
-      setup: 'Steep traverse wall, juggy holds.',
-      desc: 'Exaggerates the twisting motion to save energy.',
-      execution: ['Traverse horizontally.', 'On every single move, twist the hip of the reaching arm completely into the wall.', 'Hold the twist for 2 seconds before reaching.'],
-      mistakes: ['Remaining frontal.', 'Sagging hips away from the wall.']
-    },
-    {
-      id: 'd11', title: 'Flag & Tap', focus: 'Flagging Balance',
-      setup: 'Vertical wall, scattered holds.',
-      desc: 'Forces the climber to find a stable flagging position.',
-      execution: ['Climb using same hand and foot side (e.g., Left hand, Left foot on).', 'Flag the free leg (Right) hard out to the side.', 'Use the free hand (Right) to tap a spot on the wall far away to prove absolute balance, then continue.'],
-      mistakes: ['Tapping too quickly while falling.', 'Not extending the flag leg far enough.']
-    },
-    {
-      id: 'd12', title: 'No Matching Allowed', focus: 'Flagging & Swapping',
-      setup: 'Any moderate boulder.',
-      desc: 'Eliminates easy outs to force creative positioning.',
-      execution: ['Climb the route.', 'Rule: You may never place two hands or two feet on the same hold.', 'Forces back-steps, flagging, and crossing over.'],
-      mistakes: ['Getting stuck due to lack of foresight.']
-    },
-    {
-      id: 'd13', title: 'The Coin Drill', focus: 'Precision Footwork',
-      setup: 'Slab or vertical wall. Small coins.',
-      desc: 'The ultimate precision test.',
-      execution: ['Place coins on a few key footholds.', 'The climber must step exactly on the coin.', 'If the coin falls off, they must restart.'],
-      mistakes: ['Smearing onto the hold.']
-    },
-    {
-      id: 'd14', title: 'Open Hand Only', focus: 'Grip Safety',
-      setup: 'Vertical wall with various edges and crimps.',
-      desc: 'Protects pulleys by forcing an open-hand grip.',
-      execution: ['Climb the route.', 'Rule: The thumb must NEVER wrap over the index finger (no full crimps).', 'Forces use of sloper-strength on crimps.'],
-      mistakes: ['Unconsciously crimping out of fear or habit.']
-    },
-    {
-      id: 'd15', title: 'Tennis Ball Holds', focus: 'Pinch Strength',
-      setup: 'Two tennis balls (or similar objects).',
-      desc: 'Forces active engagement of the thumb and pinch grip.',
-      execution: ['Climber holds a tennis ball in each hand.', 'They must climb an easy route (using large volumes/slopers) without dropping the balls.', 'This completely disables the ability to use jugs.'],
-      mistakes: ['Dropping balls.', 'Relying entirely on forearms on volumes.']
-    },
-    {
-      id: 'd16', title: 'Memory Climb', focus: 'Route Reading & Focus',
-      setup: 'Boulder problem with many distracting holds nearby.',
-      desc: 'Tests visualization and memory.',
-      execution: ['Climber visualizes the route for 1 minute.', 'Before climbing, they put on a blindfold or close their eyes (top rope/very safe low traverse only).', 'Alternatively, trainer uses laser pointer to designate the next hold ONLY when they reach the current one, testing if they remembered the plan.'],
-      mistakes: ['Looking around confused on the wall.']
-    },
-    {
-      id: 'd17', title: 'Touch & Go (Deadpointing)', focus: 'Dynamic Accuracy',
-      setup: 'Overhanging wall.',
-      desc: 'Isolates the "deadpoint" – the moment of weightlessness.',
-      execution: ['Climber lunges for a distant hold.', 'Instead of grabbing it, they just TAP it with their fingers.', 'They must drop back to the start position under control.', 'Do this 3 times, then actually grab it on the 4th.'],
-      mistakes: ['Grabbing instead of tapping.', 'Swinging wildly upon returning.']
-    },
-    {
-      id: 'd18', title: 'Hip Thrust Isolations', focus: 'Dyno Preparation',
-      setup: 'Large starting jugs, overhanging.',
-      desc: 'Teaches the timing of the hips in dynamic movement.',
-      execution: ['Grab start holds.', 'Pull in and throw hips aggressively up and into the wall.', 'Do not let go with the hands. Just practice the "bounce" and hip trajectory.', 'Repeat 5 times.'],
-      mistakes: ['Pulling only with arms instead of thrusting hips.']
-    },
-    {
-      id: 'd19', title: 'The 3-Second Shake', focus: 'Resting on the Wall',
-      setup: 'Long endurance route.',
-      desc: 'Forces active recovery.',
-      execution: ['On every 3rd hand move, the climber MUST stop.', 'They must find the most relaxed position possible (straight arm).', 'Shake out the resting arm for a full 3 seconds before continuing.'],
-      mistakes: ['Shaking out while holding on with a bent arm (wasting energy).']
-    },
-    {
-      id: 'd20', title: 'Downclimbing Everything', focus: 'Efficiency & Eccentric Strength',
-      setup: 'Main bouldering session.',
-      desc: 'The best way to build technique and antagonist strength.',
-      execution: ['For every boulder climbed, the climber must downclimb to at least the halfway mark using any holds available.', 'Forces slow, controlled, static movement.'],
-      mistakes: ['Jumping from the top.', 'Dropping feet blindly while downclimbing.']
-    },
-    {
-      id: 'd21', title: 'Progressive Fall Practice', focus: 'Fear & Falling Mechanics',
-      setup: 'Safety mats, clear drop zone.',
-      desc: 'De-sensitizes the fear of falling and teaches the roll.',
-      execution: ['Fall 1: Drop from lowest hold. Bend knees, roll back.', 'Fall 2: Climb 1 meter, look down, let go, roll.', 'Fall 3: Climb 2 meters, push slightly away from wall, roll.', 'Never try to stick the landing standing up.'],
-      mistakes: ['Putting arms out behind to catch the fall (wrist breaker).', 'Staying stiff.']
-    },
-    {
-      id: 'd22', title: 'The Look-Down Breath', focus: 'Mental Commitment',
-      setup: 'Crux move of a scary boulder.',
-      desc: 'Interrupts the panic response.',
-      execution: ['When feeling fear before a move, stop.', 'Look straight down at the mats (acknowledge the fall).', 'Take one massive, audible deep breath.', 'Look back up at the target hold and execute immediately.'],
-      mistakes: ['Holding breath while climbing.', 'Staring at the wall while panicking.']
-    }
-  ]
-};
-
-// --- COMPONENTS ---
+import { INITIAL_DATABASE, DEFAULT_TAGS } from './data/initialData';
+import DemonstrationVisual from './components/DemonstrationVisual';
+import RouteDrawer from './components/RouteDrawer';
+import DrillTimerModal from './components/DrillTimerModal';
+import SessionBuilderDrawer from './components/SessionBuilderDrawer';
+import StudentManager from './components/StudentManager';
+import QuickAddDrillModal from './components/QuickAddDrillModal';
+import FeedbackQrModal from './components/FeedbackQrModal';
+import SyncModal from './components/SyncModal';
 
 const Card = ({ children, className = '' }) => (
   <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>
@@ -300,118 +23,452 @@ const Card = ({ children, className = '' }) => (
 );
 
 export default function TrainerApp() {
-  const [activeTab, setActiveTab] = useState('courses');
+  // Navigation & UI States
+  const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'concepts', 'drills', 'students', 'tools'
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState(null);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  // Accordion States
   const [expandedCourse, setExpandedCourse] = useState('c1');
   const [expandedDay, setExpandedDay] = useState(1);
   const [expandedDrills, setExpandedDrills] = useState({});
   const [expandedConcept, setExpandedConcept] = useState(null);
 
+  // Persistent States (localStorage)
+  const [customDrills, setCustomDrills] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_custom_drills');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return ['d1', 'd3', 'cg']; }
+  });
+
+  const [sessionItems, setSessionItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_current_session');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const [savedTemplates, setSavedTemplates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_saved_templates');
+      return saved ? JSON.parse(saved) : [
+        {
+          name: 'Day 1 Core Drills',
+          items: [
+            { id: 'd1', title: 'Silent Feet (Ninja Feet)', type: 'drill', focus: 'Precision Footwork', timerSeconds: null },
+            { id: 'd3', title: 'The Hover Hand (3-Second Rule)', type: 'drill', focus: 'Balance & CoG', timerSeconds: 3 }
+          ]
+        }
+      ];
+    } catch { return []; }
+  });
+
+  const [students, setStudents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_students');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'stud_1',
+          name: 'Sarah Jenkins',
+          className: 'Technique Course 1',
+          goal: 'Footwork precision & stop full crimping',
+          skills: { sk_silent: 'mastered', sk_sticky: 'practicing' },
+          notes: [
+            { id: 'n1', date: 'Oct 2', text: 'Clean footwork on slabs! Remind her to keep thumb open on crimps.' }
+          ]
+        },
+        {
+          id: 'stud_2',
+          name: 'Marc Torres',
+          className: 'Technique Course 1',
+          goal: 'Overhangs & turning in',
+          skills: { sk_turnin: 'practicing' },
+          notes: [
+            { id: 'n2', date: 'Oct 2', text: 'Tends to climb frontally. Twist-Lock drill helped save arm energy.' }
+          ]
+        }
+      ];
+    } catch { return []; }
+  });
+
+  const [customMediaUrls, setCustomMediaUrls] = useState(() => {
+    try {
+      const saved = localStorage.getItem('boulder_custom_media');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Modal Dialog States
+  const [isRouteDrawerOpen, setIsRouteDrawerOpen] = useState(false);
+  const [activeTimerConfig, setActiveTimerConfig] = useState(null); // { seconds, title }
+  const [isSessionDrawerOpen, setIsSessionDrawerOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isFeedbackQrOpen, setIsFeedbackQrOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem('boulder_custom_drills', JSON.stringify(customDrills));
+  }, [customDrills]);
+
+  useEffect(() => {
+    localStorage.setItem('boulder_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('boulder_current_session', JSON.stringify(sessionItems));
+  }, [sessionItems]);
+
+  useEffect(() => {
+    localStorage.setItem('boulder_saved_templates', JSON.stringify(savedTemplates));
+  }, [savedTemplates]);
+
+  useEffect(() => {
+    localStorage.setItem('boulder_students', JSON.stringify(students));
+  }, [students]);
+
+  useEffect(() => {
+    localStorage.setItem('boulder_custom_media', JSON.stringify(customMediaUrls));
+  }, [customMediaUrls]);
+
+  // Merge default + custom drills
+  const allDrills = useMemo(() => {
+    return [...customDrills, ...INITIAL_DATABASE.drills];
+  }, [customDrills]);
+
+  // --- FAVORITES TOGGLE ---
+  const toggleFavorite = (id) => {
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    );
+  };
+
+  // --- SESSION BUILDER ACTIONS ---
+  const addToSession = (item, type = 'drill') => {
+    if (sessionItems.some(i => i.id === item.id)) {
+      setIsSessionDrawerOpen(true);
+      return;
+    }
+    const newItem = {
+      id: item.id,
+      title: item.title,
+      type,
+      category: item.category,
+      focus: item.focus,
+      timerSeconds: item.timerSeconds,
+      tags: item.tags,
+      completed: false
+    };
+    setSessionItems(prev => [...prev, newItem]);
+    setIsSessionDrawerOpen(true);
+  };
+
+  const removeFromSession = (id) => {
+    setSessionItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const toggleSessionItemComplete = (id) => {
+    setSessionItems(prev => prev.map(i => 
+      i.id === id ? { ...i, completed: !i.completed } : i
+    ));
+  };
+
+  const clearSession = () => {
+    setSessionItems([]);
+  };
+
+  const saveSessionTemplate = (name) => {
+    const newTmpl = { name, items: sessionItems };
+    setSavedTemplates(prev => [...prev.filter(t => t.name !== name), newTmpl]);
+  };
+
+  const loadSessionTemplate = (tmpl) => {
+    setSessionItems(tmpl.items.map(i => ({ ...i, completed: false })));
+  };
+
+  const deleteSessionTemplate = (name) => {
+    setSavedTemplates(prev => prev.filter(t => t.name !== name));
+  };
+
   const toggleDrill = (id) => {
     setExpandedDrills(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // --- SEARCH LOGIC ---
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const q = searchQuery.toLowerCase();
-    
-    const matchedConcepts = DATABASE.concepts.filter(c => 
-      c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q)
-    );
-    const matchedDrills = DATABASE.drills.filter(d => 
-      d.title.toLowerCase().includes(q) || 
-      d.desc.toLowerCase().includes(q) || 
-      d.focus.toLowerCase().includes(q) ||
-      (d.execution && d.execution.some(e => e.toLowerCase().includes(q)))
-    );
-    
-    return { concepts: matchedConcepts, drills: matchedDrills };
-  }, [searchQuery]);
+  const handleUpdateMediaUrl = (drillId, url) => {
+    setCustomMediaUrls(prev => ({ ...prev, [drillId]: url }));
+  };
 
-  // --- RENDERERS ---
+  // --- SEARCH & FILTER LOGIC ---
+  const filteredConcepts = useMemo(() => {
+    return INITIAL_DATABASE.concepts.filter(c => {
+      if (onlyFavorites && !favorites.includes(c.id)) return false;
+      if (selectedTag && (!c.tags || !c.tags.includes(selectedTag))) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [searchQuery, selectedTag, onlyFavorites, favorites]);
 
-  const renderSearchArea = () => (
-    <div className="sticky top-0 bg-slate-900 pt-6 pb-4 px-4 z-10 shadow-md">
-      <div className="relative max-w-md mx-auto">
-        <Search className="absolute left-3 top-3 text-slate-400" size={20} />
-        <input 
-          type="text" 
-          placeholder="Search drills, grips, concepts..." 
-          className="w-full bg-slate-800 text-white placeholder-slate-400 rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {searchQuery && (
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-3 text-slate-400 hover:text-white"
+  const filteredDrills = useMemo(() => {
+    return allDrills.filter(d => {
+      if (onlyFavorites && !favorites.includes(d.id)) return false;
+      if (selectedTag && (!d.tags || !d.tags.includes(selectedTag))) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return d.title.toLowerCase().includes(q) || 
+               d.desc.toLowerCase().includes(q) || 
+               d.focus.toLowerCase().includes(q) ||
+               (d.execution && d.execution.some(e => e.toLowerCase().includes(q))) ||
+               (d.tags && d.tags.some(t => t.toLowerCase().includes(q)));
+      }
+      return true;
+    });
+  }, [allDrills, searchQuery, selectedTag, onlyFavorites, favorites]);
+
+  // --- RENDER TOP SEARCH AREA ---
+  const renderTopBar = () => (
+    <header className="sticky top-0 bg-slate-900 pt-3 pb-2 px-3 z-30 shadow-md">
+      <div className="max-w-md mx-auto space-y-2">
+        {/* Search Input & Quick Action Icons */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search drills, grips, tags..." 
+              className="w-full bg-slate-800 text-white placeholder-slate-400 rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Favorites Filter Button */}
+          <button
+            onClick={() => setOnlyFavorites(!onlyFavorites)}
+            title="Show Starred Only"
+            className={`p-2 rounded-xl border transition-all ${
+              onlyFavorites 
+                ? 'bg-amber-500 border-amber-400 text-white shadow-md' 
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400'
+            }`}
           >
-            ✕
+            <Star size={16} fill={onlyFavorites ? "currentColor" : "none"} />
           </button>
-        )}
+
+          {/* Interactive Route Drawer Shortcut */}
+          <button
+            onClick={() => setIsRouteDrawerOpen(true)}
+            title="Open Route Drawer (Chalkboard)"
+            className="p-2 bg-slate-800 border border-slate-700 hover:border-emerald-500 text-emerald-400 hover:text-white rounded-xl transition-all"
+          >
+            <Edit3 size={16} />
+          </button>
+
+          {/* Session Builder Cart Tray */}
+          <button
+            onClick={() => setIsSessionDrawerOpen(true)}
+            title="Open Custom Session Builder"
+            className="relative p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all shadow-md"
+          >
+            <ShoppingBag size={16} />
+            {sessionItems.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow">
+                {sessionItems.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Quick Tag Filtering Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-[11px]">
+          <button
+            onClick={() => setSelectedTag(null)}
+            className={`px-2.5 py-0.5 rounded-full font-medium transition-all shrink-0 ${
+              selectedTag === null && !onlyFavorites
+                ? 'bg-emerald-500 text-slate-950 font-bold' 
+                : 'bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            All
+          </button>
+          {DEFAULT_TAGS.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              className={`px-2 py-0.5 rounded-full font-medium transition-all shrink-0 ${
+                selectedTag === tag 
+                  ? 'bg-emerald-500 text-slate-950 font-bold' 
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </header>
   );
 
+  // --- DRILL CARD COMPONENT ---
   const renderDrillCard = (d) => {
     const isExpanded = expandedDrills[d.id];
-    return (
-      <Card key={d.id} className="border-l-4 border-l-blue-500 mb-4 transition-all">
-        <button 
-          onClick={() => toggleDrill(d.id)}
-          className="w-full text-left p-4 focus:outline-none hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2"
-        >
-          <div>
-            <h3 className="font-bold text-lg text-slate-800 leading-tight">{d.title}</h3>
-            <span className="inline-block bg-blue-50 text-blue-700 font-medium text-xs px-2 py-1 rounded mt-2 mb-2">
-              Focus: {d.focus}
-            </span>
-            <p className="text-sm text-slate-600 leading-relaxed pr-4 line-clamp-2">
-              {d.desc}
-            </p>
-          </div>
-          <div className="text-blue-500 bg-blue-50 p-2 rounded-full self-start shrink-0">
-            {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-          </div>
-        </button>
+    const isFav = favorites.includes(d.id);
+    const inSession = sessionItems.some(i => i.id === d.id);
+    const customMedia = customMediaUrls[d.id];
 
+    return (
+      <Card key={d.id} className="border-l-4 border-l-blue-500 mb-3.5 transition-all">
+        {/* Card Header & Controls */}
+        <div className="p-3 sm:p-4 hover:bg-slate-50 transition-colors">
+          <div className="flex items-start justify-between gap-2">
+            <button 
+              onClick={() => toggleDrill(d.id)}
+              className="text-left flex-1 min-w-0"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base text-slate-800 leading-tight">
+                  {d.title}
+                </h3>
+                {d.isCustom && (
+                  <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold uppercase">
+                    Custom
+                  </span>
+                )}
+              </div>
+              <span className="inline-block bg-blue-50 text-blue-700 font-semibold text-[11px] px-2 py-0.5 rounded mt-1.5 mb-1">
+                Focus: {d.focus}
+              </span>
+              <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                {d.desc}
+              </p>
+            </button>
+
+            {/* Quick Actions (Favorite & Add to Session) */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFavorite(d.id); }}
+                className={`p-1.5 rounded-lg transition-colors ${isFav ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'}`}
+                title={isFav ? "Remove Favorite" : "Favorite Drill"}
+              >
+                <Star size={16} fill={isFav ? "currentColor" : "none"} />
+              </button>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); addToSession(d, 'drill'); }}
+                className={`p-1.5 rounded-lg transition-colors ${inSession ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 hover:bg-slate-200'}`}
+                title="Add to Daily Session Plan"
+              >
+                <Plus size={16} />
+              </button>
+
+              <button
+                onClick={() => toggleDrill(d.id)}
+                className="text-blue-500 bg-blue-50 p-1.5 rounded-full hover:bg-blue-100 ml-0.5"
+              >
+                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Tag Pills */}
+          {d.tags && d.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {d.tags.map(t => (
+                <button
+                  key={t}
+                  onClick={(e) => { e.stopPropagation(); setSelectedTag(t); }}
+                  className="text-[10px] bg-slate-100 text-slate-500 hover:bg-slate-200 px-2 py-0.5 rounded"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Expanded View with Timer & Visuals */}
         {isExpanded && (
-          <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-white">
-            <p className="text-sm text-slate-700 mb-4 italic bg-slate-50 p-3 rounded border border-slate-100">
-              {d.desc}
-            </p>
-            
+          <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-white space-y-3.5">
+            {/* Action Bar (Floor Timer Trigger) */}
+            <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
+                <Timer size={16} className="text-emerald-600" />
+                <span>
+                  {d.timerSeconds ? `${d.timerSeconds}-Second Drill Timer` : 'Floor Stopwatch / Interval Timer'}
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveTimerConfig({ seconds: d.timerSeconds || 3, title: d.title })}
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
+              >
+                <Play size={12} /> Start Timer
+              </button>
+            </div>
+
+            {/* Visual & Media Demonstration (Looping GIF / Animated SVG) */}
+            <div>
+              <h4 className="font-semibold text-slate-800 text-xs flex items-center gap-1.5 mb-1">
+                <Sparkles size={14} className="text-amber-500" /> Movement Demonstration
+              </h4>
+              <DemonstrationVisual
+                visualType={d.visualType}
+                customMediaUrl={customMedia}
+                onUpdateMediaUrl={(url) => handleUpdateMediaUrl(d.id, url)}
+              />
+            </div>
+
+            {/* Environment Setup */}
             {d.setup && (
-              <div className="mb-4">
-                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-sm mb-2">
-                  <Map size={16} className="text-slate-500"/> Environment Setup
+              <div>
+                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
+                  <Map size={14} className="text-slate-500"/> Environment Setup
                 </h4>
-                <p className="text-sm text-slate-600 pl-5">{d.setup}</p>
+                <p className="text-xs text-slate-600 pl-4">{d.setup}</p>
               </div>
             )}
 
+            {/* Execution Steps */}
             {d.execution && (
-              <div className="mb-4">
-                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-sm mb-2">
-                  <CheckCircle2 size={16} className="text-emerald-500"/> Execution Steps
+              <div>
+                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
+                  <CheckCircle2 size={14} className="text-emerald-500"/> Execution Steps
                 </h4>
-                <ol className="list-decimal list-outside pl-5 space-y-1.5">
+                <ol className="list-decimal list-outside pl-4 space-y-1">
                   {d.execution.map((step, idx) => (
-                    <li key={idx} className="text-sm text-slate-600 pl-1">{step}</li>
+                    <li key={idx} className="text-xs text-slate-600 pl-1">{step}</li>
                   ))}
                 </ol>
               </div>
             )}
 
+            {/* Common Mistakes */}
             {d.mistakes && (
               <div>
-                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-sm mb-2">
-                  <XCircle size={16} className="text-red-500"/> Common Mistakes to Watch For
+                <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
+                  <XCircle size={14} className="text-red-500"/> Common Mistakes to Watch For
                 </h4>
-                <ul className="list-disc list-outside pl-5 space-y-1.5">
+                <ul className="list-disc list-outside pl-4 space-y-1">
                   {d.mistakes.map((mistake, idx) => (
-                    <li key={idx} className="text-sm text-slate-600 pl-1">{mistake}</li>
+                    <li key={idx} className="text-xs text-slate-600 pl-1">{mistake}</li>
                   ))}
                 </ul>
               </div>
@@ -422,96 +479,68 @@ export default function TrainerApp() {
     );
   };
 
-  const renderSearchResults = () => (
-    <div className="p-4 space-y-6 pb-28 max-w-md mx-auto">
-      <h2 className="text-xl font-bold text-slate-800">Search Results</h2>
-      
-      {searchResults.concepts.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-emerald-600 flex items-center gap-2">
-            <Lightbulb size={18} /> Concepts
-          </h3>
-          {searchResults.concepts.map(c => (
-            <Card key={c.id} className="p-4 border-l-4 border-l-emerald-500">
-              <h4 className="font-bold text-slate-800">{c.title}</h4>
-              <p className="text-xs text-slate-500 mb-2">{c.category}</p>
-              <p className="text-sm text-slate-600 whitespace-pre-line">{c.desc}</p>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {searchResults.drills.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-blue-600 flex items-center gap-2 mt-6">
-            <Dumbbell size={18} /> Drills & Exercises
-          </h3>
-          {searchResults.drills.map(renderDrillCard)}
-        </div>
-      )}
-
-      {searchResults.concepts.length === 0 && searchResults.drills.length === 0 && (
-        <div className="text-center py-10 text-slate-500">
-          No results found for "{searchQuery}".
-        </div>
-      )}
-    </div>
-  );
-
+  // --- RENDER COURSES TAB ---
   const renderCourses = () => (
     <div className="p-4 space-y-4 pb-28 max-w-md mx-auto">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Course Curriculums</h2>
-      {DATABASE.courses.map(course => (
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Course Curriculums</h2>
+        <span className="text-xs text-slate-500">Bouldering Progression</span>
+      </div>
+
+      {INITIAL_DATABASE.courses.map(course => (
         <Card key={course.id} className="overflow-visible">
           <button 
-            className="w-full text-left p-4 flex justify-between items-center bg-white hover:bg-slate-50"
+            className="w-full text-left p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors"
             onClick={() => setExpandedCourse(expandedCourse === course.id ? null : course.id)}
           >
             <div>
-              <h3 className="font-bold text-lg text-slate-800">{course.title}</h3>
-              <p className="text-sm text-slate-500">{course.level}</p>
+              <h3 className="font-bold text-base text-slate-800">{course.title}</h3>
+              <p className="text-xs text-slate-500">{course.level}</p>
             </div>
-            {expandedCourse === course.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+            {expandedCourse === course.id ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </button>
           
           {expandedCourse === course.id && (
             <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-4">
-              
-              <div className="grid grid-cols-1 gap-4">
-                <div className="bg-white p-3 rounded shadow-sm">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1"><AlertTriangle size={14}/> Prerequisites</h4>
-                  <p className="text-sm text-slate-700">{course.prerequisites}</p>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <AlertTriangle size={13}/> Prerequisites
+                  </h4>
+                  <p className="text-xs text-slate-700 leading-relaxed">{course.prerequisites}</p>
                 </div>
-                <div className="bg-white p-3 rounded shadow-sm">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1"><Target size={14}/> Target Audience</h4>
-                  <p className="text-sm text-slate-700">{course.target}</p>
+                <div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Target size={13}/> Target Audience
+                  </h4>
+                  <p className="text-xs text-slate-700 leading-relaxed">{course.target}</p>
                 </div>
               </div>
 
               {course.days && (
-                <div className="mt-4 space-y-2">
-                  <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-3">
-                    <Map size={18} className="text-emerald-600"/> Lesson Plans
+                <div className="mt-3 space-y-2">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-1.5 text-xs mb-2">
+                    <Map size={15} className="text-emerald-600"/> 4-Week Lesson Plans
                   </h4>
                   {course.days.map(day => (
-                    <div key={day.day} className="bg-white border border-slate-200 rounded overflow-hidden">
+                    <div key={day.day} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
                       <button 
-                        className="w-full text-left px-4 py-3 flex justify-between items-center hover:bg-slate-50"
+                        className="w-full text-left px-3.5 py-2.5 flex justify-between items-center hover:bg-slate-50 text-xs font-semibold text-slate-700"
                         onClick={() => setExpandedDay(expandedDay === day.day ? null : day.day)}
                       >
-                        <span className="font-semibold text-slate-700">Day {day.day}: {day.title}</span>
-                        {expandedDay === day.day ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                        <span>Day {day.day}: {day.title}</span>
+                        {expandedDay === day.day ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
                       </button>
                       {expandedDay === day.day && (
-                        <div className="px-4 pb-4 pt-2 border-t border-slate-100">
-                          <ul className="space-y-3 mt-2">
+                        <div className="px-3.5 pb-3 pt-1 border-t border-slate-100">
+                          <ul className="space-y-2 mt-1">
                             {day.activities.map((act, i) => {
                               const [boldPart, rest] = act.includes(':') ? act.split(':') : [act, ''];
                               return (
-                                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <li key={i} className="text-xs text-slate-600 flex items-start gap-2 leading-relaxed">
+                                  <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                                   <span>
-                                    {rest ? <><strong className="text-slate-800">{boldPart}:</strong>{rest}</> : boldPart}
+                                    {rest ? <><strong className="text-slate-800 font-semibold">{boldPart}:</strong>{rest}</> : boldPart}
                                   </span>
                                 </li>
                               )
@@ -525,11 +554,11 @@ export default function TrainerApp() {
               )}
 
               {course.topics && (
-                <div className="mt-4">
-                  <h4 className="font-bold text-slate-800 mb-3">Key Topics</h4>
-                  <ul className="grid gap-2">
+                <div className="mt-3">
+                  <h4 className="font-bold text-slate-800 text-xs mb-2">Curriculum Topics</h4>
+                  <ul className="grid gap-1.5">
                     {course.topics.map((topic, i) => (
-                      <li key={i} className="bg-white p-3 rounded shadow-sm text-sm text-slate-700 flex items-start gap-2 border border-slate-100">
+                      <li key={i} className="bg-white p-2.5 rounded shadow-sm text-xs text-slate-700 flex items-start gap-2 border border-slate-100">
                          <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
                          {topic}
                       </li>
@@ -537,7 +566,6 @@ export default function TrainerApp() {
                   </ul>
                 </div>
               )}
-
             </div>
           )}
         </Card>
@@ -545,62 +573,88 @@ export default function TrainerApp() {
     </div>
   );
 
+  // --- RENDER CONCEPTS TAB ---
   const renderConcepts = () => (
-    <div className="p-4 pb-28 max-w-md mx-auto">
-      <div className="flex items-center gap-2 mb-4">
-        <Lightbulb className="text-emerald-600" size={24} />
-        <h2 className="text-xl font-bold text-slate-800">Concept Library</h2>
+    <div className="p-4 pb-28 max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Lightbulb className="text-emerald-600" size={22} />
+          <h2 className="text-xl font-bold text-slate-800">Concept Library</h2>
+        </div>
+        <span className="text-xs text-slate-500">{filteredConcepts.length} concepts</span>
       </div>
-      <p className="text-sm text-slate-500 mb-4 ml-1 flex items-center gap-1">
-        <Info size={14}/> Tap a concept to see associated drills.
-      </p>
-      <div className="grid grid-cols-1 gap-4">
-        {DATABASE.concepts.map(c => {
+
+      <div className="space-y-3">
+        {filteredConcepts.map(c => {
           const isExpanded = expandedConcept === c.id;
-          const associatedDrills = c.drillIds ? DATABASE.drills.filter(d => c.drillIds.includes(d.id)) : [];
-          
+          const isFav = favorites.includes(c.id);
+          const inSession = sessionItems.some(i => i.id === c.id);
+          const associatedDrills = c.drillIds ? allDrills.filter(d => c.drillIds.includes(d.id)) : [];
+
           return (
-            <Card key={c.id} className={`transition-all duration-200 border-t-4 ${isExpanded ? 'border-t-emerald-600 shadow-md ring-1 ring-emerald-100' : 'border-t-emerald-400 hover:shadow-md'}`}>
-              <button 
-                onClick={() => setExpandedConcept(isExpanded ? null : c.id)}
-                className="w-full text-left p-4 sm:p-5 focus:outline-none"
-              >
+            <Card key={c.id} className={`transition-all border-t-4 ${isExpanded ? 'border-t-emerald-600 shadow-md ring-1 ring-emerald-100' : 'border-t-emerald-400'}`}>
+              <div className="p-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800">{c.title}</h3>
-                    <span className="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded mt-1 mb-3 font-medium">
+                  <button 
+                    onClick={() => setExpandedConcept(isExpanded ? null : c.id)}
+                    className="text-left flex-1"
+                  >
+                    <h3 className="font-bold text-base text-slate-800">{c.title}</h3>
+                    <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded mt-1 font-medium">
                       {c.category}
                     </span>
-                  </div>
-                  <div className={`p-1.5 rounded-full transition-colors ${isExpanded ? 'text-emerald-700 bg-emerald-100' : 'text-slate-400 bg-slate-50'}`}>
-                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </button>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleFavorite(c.id)}
+                      className={`p-1.5 rounded-lg ${isFav ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'}`}
+                      title={isFav ? "Remove Favorite" : "Favorite Concept"}
+                    >
+                      <Star size={16} fill={isFav ? "currentColor" : "none"} />
+                    </button>
+                    <button
+                      onClick={() => addToSession(c, 'concept')}
+                      className={`p-1.5 rounded-lg ${inSession ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                      title="Add to Daily Session Plan"
+                    >
+                      <Plus size={16} />
+                    </button>
+                    <button
+                      onClick={() => setExpandedConcept(isExpanded ? null : c.id)}
+                      className={`p-1.5 rounded-full ${isExpanded ? 'text-emerald-700 bg-emerald-100' : 'text-slate-400 bg-slate-50'}`}
+                    >
+                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </button>
                   </div>
                 </div>
-                <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">{c.desc}</p>
-              </button>
+
+                <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed mt-2.5">
+                  {c.desc}
+                </p>
+              </div>
 
               {isExpanded && associatedDrills.length > 0 && (
-                <div className="px-4 sm:px-5 pb-5 pt-3 border-t border-slate-100 bg-slate-50/50">
-                  <h4 className="font-semibold text-slate-800 text-sm mb-3 flex items-center gap-1.5">
-                    <Dumbbell size={16} className="text-blue-500" /> Apply this concept with these drills:
+                <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/60">
+                  <h4 className="font-semibold text-slate-800 text-xs mb-2.5 flex items-center gap-1.5">
+                    <Dumbbell size={14} className="text-blue-500" /> Apply this concept with these drills:
                   </h4>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {associatedDrills.map(d => (
-                       <div key={d.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div>
-                            <span className="font-bold text-slate-700 text-sm block mb-0.5">{d.title}</span>
-                            <p className="text-xs text-slate-500 line-clamp-2">{d.desc}</p>
+                       <div key={d.id} className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="font-semibold text-slate-700 text-xs block truncate">{d.title}</span>
+                            <span className="text-[10px] text-slate-400">{d.focus}</span>
                           </div>
                           <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               setActiveTab('drills');
                               setExpandedDrills({ [d.id]: true });
                               setSearchQuery(d.title);
                             }}
-                            className="text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded transition-colors flex items-center gap-1.5 shrink-0"
+                            className="text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors flex items-center gap-1 shrink-0"
                           >
-                            <Play size={12} /> View Drill
+                            <Play size={10} /> View Drill
                           </button>
                        </div>
                     ))}
@@ -614,66 +668,278 @@ export default function TrainerApp() {
     </div>
   );
 
+  // --- RENDER DRILLS TAB ---
   const renderDrills = () => (
-    <div className="p-4 pb-28 max-w-md mx-auto">
-      <div className="flex items-center gap-2 mb-2">
-        <Dumbbell className="text-blue-600" size={24} />
-        <h2 className="text-xl font-bold text-slate-800">Drill & Exercise Library</h2>
+    <div className="p-4 pb-28 max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Dumbbell className="text-blue-600" size={22} />
+          <h2 className="text-xl font-bold text-slate-800">Drills & Exercises</h2>
+        </div>
+        <button
+          onClick={() => setIsQuickAddOpen(true)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm"
+        >
+          <Plus size={15} /> Quick Add Drill
+        </button>
       </div>
-      <p className="text-sm text-slate-500 mb-4 ml-1 flex items-center gap-1">
-        <Info size={14}/> Click on any drill to view execution steps and common mistakes.
-      </p>
-      
-      <div className="space-y-4">
-        {DATABASE.drills.map(renderDrillCard)}
+
+      <div className="space-y-3">
+        {filteredDrills.length > 0 ? (
+          filteredDrills.map(renderDrillCard)
+        ) : (
+          <div className="text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200 p-6">
+            <p className="font-semibold">No drills match your filter.</p>
+            <p className="text-xs text-slate-400 mt-1">Try clearing your search query or selecting "All" tags.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // --- RENDER TOOLS TAB ---
+  const renderTools = () => (
+    <div className="p-4 pb-28 max-w-md mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800">Interactive Floor Tools</h2>
+        <span className="text-xs text-slate-500">Coach Toolkit</span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3">
+        {/* Tool 1: Interactive Route Drawer */}
+        <Card className="p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                <Edit3 size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-800">Route Drawer (Chalkboard)</h3>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Snap a photo of the boulder wall on your phone, then draw colored beta lines, arrows, and hold numbers to explain routes.
+                </p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsRouteDrawerOpen(true)}
+            className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <Play size={14} /> Open Route Drawer
+          </button>
+        </Card>
+
+        {/* Tool 2: Floor Stopwatch & Interval Timer */}
+        <Card className="p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+              <Timer size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-800">Floor Stopwatch & Timers</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                Countdown and interval timers with synthesized audio beeps for 3-second hover drills, lock-offs, and rest intervals.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTimerConfig({ seconds: 3, title: 'Floor Exercise Timer' })}
+            className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <Play size={14} /> Open Timer
+          </button>
+        </Card>
+
+        {/* Tool 3: Custom Daily Session Cart */}
+        <Card className="p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
+              <ShoppingBag size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-800">Custom Session Builder</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                Assemble custom daily lesson plans (1 Warm-up, 2 Concepts, 3 Drills) on the fly and check off completed items.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSessionDrawerOpen(true)}
+            className="w-full mt-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            View Active Session ({sessionItems.length} items)
+          </button>
+        </Card>
+
+        {/* Tool 4: Student Feedback QR Code */}
+        <Card className="p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+              <QrCode size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-800">Course Feedback QR Code</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                Generate a full-screen QR code on your phone for students to scan with their cameras at the end of Day 4.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsFeedbackQrOpen(true)}
+            className="w-full mt-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            Show Feedback QR
+          </button>
+        </Card>
+
+        {/* Tool 5: Multi-Trainer Cloud Sync & Backup */}
+        <Card className="p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-slate-100 text-slate-700 rounded-xl">
+              <Cloud size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-slate-800">Trainer Sync & Backup</h3>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                1-click JSON export/import to share drills with other coaches via WhatsApp or sync to a shared Firebase/Supabase database.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSyncModalOpen(true)}
+            className="w-full mt-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            Sync / Export Data
+          </button>
+        </Card>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      {/* Top Search Bar */}
-      {renderSearchArea()}
+    <div className="min-h-screen bg-slate-50 font-sans flex flex-col text-slate-800">
+      {/* Top Search & Filter Bar */}
+      {renderTopBar()}
 
-      {/* Main Content Area */}
+      {/* Main Screen Body */}
       <main className="flex-1 overflow-y-auto">
-        {searchQuery ? renderSearchResults() : (
-          <>
-            {activeTab === 'courses' && renderCourses()}
-            {activeTab === 'concepts' && renderConcepts()}
-            {activeTab === 'drills' && renderDrills()}
-          </>
+        {activeTab === 'courses' && renderCourses()}
+        {activeTab === 'concepts' && renderConcepts()}
+        {activeTab === 'drills' && renderDrills()}
+        {activeTab === 'students' && (
+          <StudentManager students={students} onUpdateStudents={setStudents} />
         )}
+        {activeTab === 'tools' && renderTools()}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe z-50">
-        <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+      {/* Bottom Mobile Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe z-40">
+        <div className="flex justify-around items-center p-1.5 max-w-md mx-auto">
           <button 
             onClick={() => { setActiveTab('courses'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-lg w-24 transition-colors ${activeTab === 'courses' && !searchQuery ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-slate-800'}`}
+            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
+              activeTab === 'courses' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <BookOpen size={24} className="mb-1" />
-            <span className="text-xs font-medium">Courses</span>
+            <BookOpen size={20} className="mb-0.5" />
+            <span className="text-[11px]">Courses</span>
           </button>
           
           <button 
             onClick={() => { setActiveTab('concepts'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-lg w-24 transition-colors ${activeTab === 'concepts' && !searchQuery ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-slate-800'}`}
+            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
+              activeTab === 'concepts' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Lightbulb size={24} className="mb-1" />
-            <span className="text-xs font-medium">Concepts</span>
+            <Lightbulb size={20} className="mb-0.5" />
+            <span className="text-[11px]">Concepts</span>
           </button>
 
           <button 
             onClick={() => { setActiveTab('drills'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-lg w-24 transition-colors ${activeTab === 'drills' && !searchQuery ? 'text-blue-600 bg-blue-50' : 'text-slate-500 hover:text-slate-800'}`}
+            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
+              activeTab === 'drills' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Dumbbell size={24} className="mb-1" />
-            <span className="text-xs font-medium">Drills</span>
+            <Dumbbell size={20} className="mb-0.5" />
+            <span className="text-[11px]">Drills</span>
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('students'); setSearchQuery(''); }}
+            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
+              activeTab === 'students' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Users size={20} className="mb-0.5" />
+            <span className="text-[11px]">Students</span>
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('tools'); setSearchQuery(''); }}
+            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
+              activeTab === 'tools' ? 'text-purple-600 bg-purple-50 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Edit3 size={20} className="mb-0.5" />
+            <span className="text-[11px]">Tools</span>
           </button>
         </div>
       </nav>
+
+      {/* Floating Modals and Drawers */}
+      {isRouteDrawerOpen && (
+        <RouteDrawer onClose={() => setIsRouteDrawerOpen(false)} />
+      )}
+
+      {activeTimerConfig && (
+        <DrillTimerModal
+          initialSeconds={activeTimerConfig.seconds}
+          drillTitle={activeTimerConfig.title}
+          onClose={() => setActiveTimerConfig(null)}
+        />
+      )}
+
+      <SessionBuilderDrawer
+        isOpen={isSessionDrawerOpen}
+        sessionItems={sessionItems}
+        onRemoveItem={removeFromSession}
+        onToggleComplete={toggleSessionItemComplete}
+        onClearSession={clearSession}
+        onOpenTimer={(item) => setActiveTimerConfig({ seconds: item.timerSeconds || 3, title: item.title })}
+        savedTemplates={savedTemplates}
+        onSaveTemplate={saveSessionTemplate}
+        onLoadTemplate={loadSessionTemplate}
+        onDeleteTemplate={deleteSessionTemplate}
+        onClose={() => setIsSessionDrawerOpen(false)}
+      />
+
+      {isQuickAddOpen && (
+        <QuickAddDrillModal
+          onSaveDrill={(newDrill) => setCustomDrills(prev => [newDrill, ...prev])}
+          onClose={() => setIsQuickAddOpen(false)}
+        />
+      )}
+
+      {isFeedbackQrOpen && (
+        <FeedbackQrModal onClose={() => setIsFeedbackQrOpen(false)} />
+      )}
+
+      {isSyncModalOpen && (
+        <SyncModal
+          customDrills={customDrills}
+          students={students}
+          favorites={favorites}
+          savedTemplates={savedTemplates}
+          onImportData={(data) => {
+            if (data.customDrills) setCustomDrills(data.customDrills);
+            if (data.students) setStudents(data.students);
+            if (data.favorites) setFavorites(data.favorites);
+            if (data.savedTemplates) setSavedTemplates(data.savedTemplates);
+          }}
+          onClose={() => setIsSyncModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
