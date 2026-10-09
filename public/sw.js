@@ -1,4 +1,4 @@
-const CACHE_NAME = 'boulder-trainer-v1';
+const CACHE_NAME = 'boulder-trainer-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,7 +9,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key.startsWith('boulder-trainer-') && key !== CACHE_NAME) {
             return caches.delete(key);
           }
         })

@@ -1,4 +1,7 @@
+import { BODY_TENSION_DRILLS, BODY_TENSION_CONCEPT } from './bodyTension';
+
 export const DEFAULT_TAGS = [
+  '#body-tension', '#heel-hook', '#toe-hook',
   '#footwork',
   '#balance',
   '#overhang',
@@ -113,6 +116,7 @@ export const INITIAL_DATABASE = {
     }
   ],
   concepts: [
+    BODY_TENSION_CONCEPT,
     {
       id: 'cg', title: 'Center of Gravity (CoG)', category: 'Physics of Climbing',
       tags: ['#balance', '#slab'],
@@ -175,6 +179,7 @@ export const INITIAL_DATABASE = {
     }
   ],
   drills: [
+    ...BODY_TENSION_DRILLS,
     {
       id: 'd1', title: 'Silent Feet (Ninja Feet)', focus: 'Precision Footwork',
       tags: ['#footwork', '#warmup'],

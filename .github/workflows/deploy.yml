@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test workout timer
+        run: npm test
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

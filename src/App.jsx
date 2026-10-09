@@ -10,6 +10,9 @@ import { INITIAL_DATABASE, DEFAULT_TAGS } from './data/initialData';
 import DemonstrationVisual from './components/DemonstrationVisual';
 import RouteDrawer from './components/RouteDrawer';
 import DrillTimerModal from './components/DrillTimerModal';
+import BodyTensionSession from './components/BodyTensionSession';
+import { BODY_TENSION_DRILLS, BODY_TENSION_SESSION } from './data/bodyTension';
+import { DEFAULT_CONFIG, normalizeConfig, buildPhases } from './utils/workoutTimer';
 import SessionBuilderDrawer from './components/SessionBuilderDrawer';
 import StudentManager from './components/StudentManager';
 import QuickAddDrillModal from './components/QuickAddDrillModal';
@@ -109,7 +112,21 @@ export default function TrainerApp() {
 
   // Modal Dialog States
   const [isRouteDrawerOpen, setIsRouteDrawerOpen] = useState(false);
-  const [activeTimerConfig, setActiveTimerConfig] = useState(null); // { seconds, title }
+  const [activeTimerConfig, setActiveTimerConfig] = useState(() => {
+    if (!location.hash.startsWith('#timer=')) return null;
+    try {
+      const shared = JSON.parse(decodeURIComponent(location.hash.slice(7)));
+      const config = normalizeConfig(shared.config);
+      buildPhases(config);
+      return { title: typeof shared.title === 'string' ? shared.title : 'Shared workout', config };
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (activeTimerConfig?.config && location.hash.startsWith('#timer=')) {
+      // Import once so a later refresh can resume a saved workout normally.
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  }, [activeTimerConfig]);
   const [isSessionDrawerOpen, setIsSessionDrawerOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isFeedbackQrOpen, setIsFeedbackQrOpen] = useState(false);
@@ -482,6 +499,19 @@ export default function TrainerApp() {
   // --- RENDER COURSES TAB ---
   const renderCourses = () => (
     <div className="p-4 space-y-4 pb-28 max-w-md mx-auto">
+      <BodyTensionSession
+        renderDrill={renderDrillCard}
+        onAddSession={() => {
+          setSessionItems(items => [...items, ...BODY_TENSION_DRILLS.filter(d => !items.some(i => i.id === d.id)).map(d => ({ ...d, type: 'drill', completed: false }))]);
+          setIsSessionDrawerOpen(true);
+        }}
+        onStartTimer={() => setActiveTimerConfig({
+          title: BODY_TENSION_SESSION.title,
+          config: { ...DEFAULT_CONFIG, mode: 'mix', intro: 10, blocks: BODY_TENSION_SESSION.blocks.map((block, i) => ({
+            ...DEFAULT_CONFIG, id: `bt-block-${i}`, mode: 'work', label: block.title, duration: block.minutes * 60, intro: 0,
+          })) },
+        })}
+      />
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-800">Course Curriculums</h2>
         <span className="text-xs text-slate-500">Bouldering Progression</span>
@@ -738,7 +768,7 @@ export default function TrainerApp() {
             <div>
               <h3 className="font-bold text-sm text-slate-800">Floor Stopwatch & Timers</h3>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Countdown and interval timers with synthesized audio beeps for 3-second hover drills, lock-offs, and rest intervals.
+                AMRAP, For Time, EMOM, Tabata and MIX workouts, plus countdowns, intervals and stopwatch. Save presets, count rounds, track splits and use the gym display.
               </p>
             </div>
           </div>
@@ -896,6 +926,7 @@ export default function TrainerApp() {
         <DrillTimerModal
           initialSeconds={activeTimerConfig.seconds}
           drillTitle={activeTimerConfig.title}
+          initialConfig={activeTimerConfig.config}
           onClose={() => setActiveTimerConfig(null)}
         />
       )}

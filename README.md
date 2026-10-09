@@ -25,6 +25,11 @@ This app is configured as a Progressive Web App (PWA) with offline support, app 
 ---
 
 ## ✨ Features
+- **9 October 2026 session:** Complete intermediate body-tension, heel-hook and toe-hook program, with 16 reusable drills, coaching cues, one-click session planning and an editable seven-block timer. The 15-minute warm-up and 30-minute finish follow the supplied program; other block durations are suggestions. Original program: [docs/body-tension-2026-10-09.md](docs/body-tension-2026-10-09.md).
+- **Workout timers:** AMRAP, For Time (optional cap), EMOM (custom interval and Death By), Tabata, MIX, countdown, intervals and stopwatch. Includes intro countdown, rounds, sets, rest, count-up/down, skip, finish, manual round/lap splits, section repeats, block duplication/reordering and shared workout links.
+- **Timer presets and log:** Device-local saved configurations, automatic completion logs, notes and images, CSV export, JSON backup/import. Import preserves unrelated existing entries. Preparation is excluded from workout scores. Up to 200 recent log entries are retained.
+- **Gym display:** Large clock, gym/coach branding, logo tinting, workout text, adjustable text size, auto-scroll and high-visibility colors. Mirror the device screen or cast the browser tab to a TV.
+- **Timer cues:** Seven original synthesized sound packs, volume/mute, browser-provided spoken voices, countdown/halfway/minute cues, vibration and screen wake lock where supported. Timestamp-based timing recovers after backgrounding, closing/reopening the timer or refreshing the app; browser sleep may suppress audio cues.
 - **Curriculums:** Structured day-by-day lesson plans for Beginner, Intermediate, and Advanced technique courses.
 - **Concept Library:** Deep dive into climbing physics, center of gravity (CoG), eindrehen, flagging, grip types, dynamic movements, and resting tactics.
 - **Drill Library:** 22+ categorized drills (Ninja Feet, Carabiner Tail, Twist-Lock, Deadpointing, etc.) with detailed environment setups, execution steps, and common mistakes to watch for.
@@ -44,4 +49,13 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Check timer behavior
+npm test
 ```
+
+## Timer reference and platform limits
+
+Timer behavior was researched against the official [SmartWOD Timer](https://smartwod.app/wod-timer), [MIX guide](https://smartwod.app/custom-workout-timer) and [Box Timer guide](https://smartwod.app/box-timer). This implementation uses original code and synthesized sounds, with the voices available on the current device. It does not include SmartWOD's proprietary sound/voice assets, native Apple Watch/Apple Health integration, direct Chromecast phone-remote control, or separate phone/TV audio routing. Those require native integrations beyond this GitHub Pages web app.
+
+Workout data stays on the device. Export a timer backup before clearing browser data or moving to a new device. A running timer is restored when opening the timer again; opening an explicitly configured session or shared workout starts a new setup. Keep the timer visible for reliable sound cues. Timing catches up when returning from background sleep.

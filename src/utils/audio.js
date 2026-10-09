@@ -14,7 +14,7 @@ function getAudioContext() {
   return audioCtx;
 }
 
-export function playBeep(freq = 880, duration = 0.12, type = 'sine') {
+export function playBeep(freq = 880, duration = 0.12, type = 'sine', volume = 1) {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -27,7 +27,7 @@ export function playBeep(freq = 880, duration = 0.12, type = 'sine') {
     
     // Smooth envelope to avoid clicking sounds
     gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.3 * Math.min(1, Math.max(0, volume))), ctx.currentTime + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
     
     osc.connect(gain);
