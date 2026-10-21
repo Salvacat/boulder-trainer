@@ -24,10 +24,10 @@ export default function SessionLibrary({
     filter === "teaching"
       ? Boolean(s.coaching)
       : filter === "technique"
-        ? s.category === "Technique"
+        ? s.category === "Technique" && !s.coaching
         : filter === "saved"
           ? bookmarks.includes(s.id)
-          : true,
+          : !s.coaching,
   );
   return (
     <div className="bt-page">
@@ -47,14 +47,14 @@ export default function SessionLibrary({
       )}
       <button className="bt-continue" onClick={onTeaching}>
         <span>
-          <strong>Teach from the gym courses</strong>Six levels · lesson plans ·
-          demonstration videos
+          <strong>Teach from the gym courses</strong>Core & performance levels ·
+          lesson plans · demonstration videos
         </span>
         <ChevronRight size={20} />
       </button>
       <div className="bt-filter-row" aria-label="Session filters">
         {[
-          ["all", "All sessions"],
+          ["all", "Session picks"],
           ["technique", "Technique"],
           ["teaching", "Coach lessons"],
           ["saved", "Saved"],

@@ -30,6 +30,13 @@ import {
 } from "lucide-react";
 
 import { INITIAL_DATABASE, DEFAULT_TAGS } from "./data/initialData";
+import MovementAtlas from "./components/MovementAtlas";
+import PracticeLog from "./components/PracticeLog";
+import {
+  PRACTICE_LOG_KEY,
+  cleanPracticeEntries,
+  mergePracticeEntries,
+} from "./utils/practiceLog.js";
 import CoachingPathway from "./components/CoachingPathway";
 import DrillResources from "./components/DrillResources";
 import DemonstrationVisual from "./components/DemonstrationVisual";
@@ -49,6 +56,7 @@ import {
   normalizeConfig,
   buildPhases,
   readStorage,
+  writeStorage,
 } from "./utils/workoutTimer";
 import SessionBuilderDrawer from "./components/SessionPlan";
 import StudentManager from "./components/StudentManager";
@@ -67,9 +75,24 @@ const Card = ({ children, className = "" }) => (
 export default function TrainerApp() {
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState("sessions");
-  const [libraryView, setLibraryView] = useState("drills");
+  const [libraryView, setLibraryView] = useState("atlas");
+  const [selectedTopicId, setSelectedTopicId] = useState(null);
+  const [practiceEntries, setPracticeEntries] = useState(() =>
+    cleanPracticeEntries(readStorage(PRACTICE_LOG_KEY, [])),
+  );
+  const updatePracticeEntries = (next) => {
+    const value = cleanPracticeEntries(
+      typeof next === "function" ? next(practiceEntries) : next,
+    );
+    if (!writeStorage(PRACTICE_LOG_KEY, value)) return false;
+    setPracticeEntries(value);
+    return true;
+  };
   const [coachView, setCoachView] = useState("pathway");
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [activeTab, libraryView, selectedSessionId, selectedTopicId]);
   const [sessionBookmarks, setSessionBookmarks] = useState(() =>
     readStorage("boulder_session_bookmarks", []),
   );
@@ -609,8 +632,46 @@ export default function TrainerApp() {
     );
   };
 
+  const addPracticeBlock = (ids) => {
+    setSessionItems((current) =>
+      appendSessionItems(
+        current,
+        ids.map((id) => allDrills.find((d) => d.id === id)).filter(Boolean),
+      ),
+    );
+    setIsSessionDrawerOpen(true);
+  };
+  const exploreAtlas = (id = null) => {
+    setSelectedTopicId(id);
+    setLibraryView("atlas");
+    setActiveTab("library");
+  };
+  const renderAtlas = () => (
+    <MovementAtlas
+      selectedId={selectedTopicId}
+      onSelect={setSelectedTopicId}
+      entries={practiceEntries}
+      onUpdateEntries={updatePracticeEntries}
+      onBackup={() => setIsSyncModalOpen(true)}
+      renderDrill={(id) => {
+        const drill = allDrills.find((d) => d.id === id);
+        return drill ? renderDrillCard(drill) : null;
+      }}
+      onBuild={addPracticeBlock}
+      onOpenLesson={(id) => {
+        setSelectedSessionId(id);
+        setActiveTab("sessions");
+      }}
+      onShowCourse={(id) => {
+        setExpandedCourse(id);
+        setLibraryView("courses");
+      }}
+    />
+  );
+
   const renderPathway = () => (
     <CoachingPathway
+      onExplore={() => exploreAtlas()}
       onOpenLesson={(id) => {
         setSelectedSessionId(id);
         setActiveTab("sessions");
@@ -1110,16 +1171,20 @@ export default function TrainerApp() {
         ))}
       {activeTab === "library" && (
         <div className="bt-page">
-          <div className="bt-page-heading">
-            <p className="bt-eyebrow">Move with intention</p>
-            <h1>Your climbing library.</h1>
-            <p>Find a drill. Understand a movement. Build a better session.</p>
-          </div>
+          {libraryView !== "atlas" && (
+            <div className="bt-page-heading">
+              <p className="bt-eyebrow">Move with intention</p>
+              <h1>Your climbing library.</h1>
+              <p>
+                Find a drill. Understand a movement. Build a better session.
+              </p>
+            </div>
+          )}
           <div className="bt-filter-row">
             {[
+              ["atlas", "Movement atlas"],
               ["drills", "Drills"],
-              ["concepts", "Concepts"],
-              ["pathway", "Teaching levels"],
+              ["concepts", "Quick concepts"],
               ["courses", "Gym courses"],
             ].map(([id, label]) => (
               <button
@@ -1135,7 +1200,9 @@ export default function TrainerApp() {
               </button>
             ))}
           </div>
-          {!["courses", "pathway"].includes(libraryView) && renderTopBar()}
+          {!["courses", "pathway", "atlas"].includes(libraryView) &&
+            renderTopBar()}
+          {libraryView === "atlas" && renderAtlas()}
           <div className="bt-legacy">
             {libraryView === "drills" && renderDrills()}
             {libraryView === "concepts" && renderConcepts()}
@@ -1172,6 +1239,7 @@ export default function TrainerApp() {
           <div className="bt-filter-row">
             {[
               ["pathway", "Teaching levels"],
+              ["log", "Practice log"],
               ["tools", "Toolkit"],
               ["students", "Students"],
             ].map(([id, label]) => (
@@ -1186,7 +1254,14 @@ export default function TrainerApp() {
             ))}
           </div>
           <div className="bt-legacy">
-            {coachView === "pathway" ? (
+            {coachView === "log" ? (
+              <PracticeLog
+                entries={practiceEntries}
+                onChange={updatePracticeEntries}
+                onOpenTopic={exploreAtlas}
+                onBackup={() => setIsSyncModalOpen(true)}
+              />
+            ) : coachView === "pathway" ? (
               renderPathway()
             ) : coachView === "students" ? (
               <StudentManager
@@ -1280,7 +1355,15 @@ export default function TrainerApp() {
             students={students}
             favorites={favorites}
             savedTemplates={savedTemplates}
+            practiceEntries={practiceEntries}
             onImportData={(data) => {
+              if (
+                data.practiceEntries &&
+                !updatePracticeEntries(
+                  mergePracticeEntries(practiceEntries, data.practiceEntries),
+                )
+              )
+                return false;
               if (data.customDrills) setCustomDrills(data.customDrills);
               if (data.students) setStudents(data.students);
               if (data.favorites) setFavorites(data.favorites);

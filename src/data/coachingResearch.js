@@ -1,7 +1,10 @@
+import { ADVANCED_VIDEOS, ADVANCED_RESOURCES } from "./advancedTraining.js";
+
 // Public creator descriptions and chapter metadata checked 21 October 2026.
 // These are related demonstrations, not claims that the videos prescribe our drills.
 export const RESEARCH_DATE = "2026-10-21";
 export const VIDEOS = {
+  ...ADVANCED_VIDEOS,
   feet: {
     title: "Climbing Techniques for Effective Footwork",
     channel: "Lattice Training",
@@ -80,6 +83,7 @@ export const youtubeUrl = (key, seconds = 0) =>
 
 // [resource, chapter seconds, what the trainer should look for, relationship]
 export const DRILL_RESOURCES = {
+  ...ADVANCED_RESOURCES,
   d1: [
     "drills",
     23,

@@ -1,3 +1,5 @@
+import { ADVANCED_LEVELS } from "./advancedTraining.js";
+
 // App-authored lesson plans extending the gym course outline. Timings and
 // observation criteria are coaching suggestions, not qualification standards.
 const exercise = (
@@ -378,6 +380,8 @@ export const COACHING_LEVELS = [
     ],
   },
 ];
+
+COACHING_LEVELS.push(...ADVANCED_LEVELS);
 
 export const lessonSessionId = (id) => `coach-${id}`;
 export const COACHING_SESSIONS = COACHING_LEVELS.flatMap((level) =>

@@ -46,6 +46,7 @@ export default function CoachingPathway({
   onOpenLesson,
   onAddLesson,
   onShowCourse,
+  onExplore,
 }) {
   const [selected, setSelected] = useState("level-1");
   const level = COACHING_LEVELS.find((item) => item.id === selected);
@@ -55,13 +56,36 @@ export default function CoachingPathway({
         <p className="bt-eyebrow">Built for teaching</p>
         <h2>From gym course to coached practice.</h2>
         <p>
-          Your gym’s three technical courses remain the foundation. These six
-          teaching levels and lesson plans are researched app extensions. They
-          are skill pathways, with no automatic grade or certification attached.
+          Your gym’s three technical courses remain the foundation. Core levels
+          1–6 lead into performance levels 7–9. These are researched trainer
+          adaptations; choose by readiness and learning goals, without grade
+          gates.
         </p>
       </div>
+      <button className="bt-source-link" onClick={onExplore}>
+        Explore the movement atlas →
+      </button>
+      <div className="bt-filter-row bt-level-stage" aria-label="Coaching depth">
+        {[
+          ["core", "Core · levels 1–6"],
+          ["performance", "Performance · levels 7–9"],
+        ].map(([stage, title]) => (
+          <button
+            key={stage}
+            aria-pressed={(level.stage || "core") === stage}
+            className={(level.stage || "core") === stage ? "is-active" : ""}
+            onClick={() =>
+              setSelected(stage === "core" ? "level-1" : "level-7")
+            }
+          >
+            {title}
+          </button>
+        ))}
+      </div>
       <div className="bt-level-tabs" aria-label="Teaching levels">
-        {COACHING_LEVELS.map((item) => (
+        {COACHING_LEVELS.filter(
+          (item) => (item.stage || "core") === (level.stage || "core"),
+        ).map((item) => (
           <button
             key={item.id}
             aria-pressed={selected === item.id}

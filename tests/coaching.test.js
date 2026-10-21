@@ -21,7 +21,7 @@ import {
 test("every built-in drill has a direct YouTube reference and an observation goal", () => {
   const ids = INITIAL_DATABASE.drills.map((d) => d.id);
   assert.equal(new Set(ids).size, ids.length);
-  assert.equal(ids.length, 45);
+  assert.equal(ids.length, 61);
   for (const id of ids) {
     const [key, seconds, focus, relation] = DRILL_RESOURCES[id] || [];
     assert.ok(VIDEOS[key], `${id} needs a researched video`);
@@ -40,8 +40,8 @@ test("every built-in drill has a direct YouTube reference and an observation goa
 test("trainer lessons retain links to gym courses, valid drills and usable session timers", () => {
   assert.equal(INITIAL_DATABASE.courses.length, 3);
   assert.equal(INITIAL_DATABASE.courses[0].days.length, 4);
-  assert.equal(COACHING_LEVELS.length, 6);
-  assert.equal(COACHING_SESSIONS.length, 12);
+  assert.equal(COACHING_LEVELS.length, 9);
+  assert.equal(COACHING_SESSIONS.length, 18);
   const ids = new Set(INITIAL_DATABASE.drills.map((d) => d.id));
   for (const level of COACHING_LEVELS) {
     assert.ok(INITIAL_DATABASE.courses.some((c) => c.id === level.courseId));

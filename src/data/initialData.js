@@ -1,4 +1,5 @@
 import { BODY_TENSION_DRILLS, BODY_TENSION_CONCEPT } from "./bodyTension.js";
+import { ADVANCED_DRILLS } from "./advancedTraining.js";
 import { RESEARCH_DRILLS } from "./coachingPathway.js";
 
 export const DEFAULT_TAGS = [
@@ -219,6 +220,7 @@ export const INITIAL_DATABASE = {
   drills: [
     ...BODY_TENSION_DRILLS,
     ...RESEARCH_DRILLS,
+    ...ADVANCED_DRILLS,
     {
       id: "d1",
       title: "Silent Feet (Ninja Feet)",
@@ -279,7 +281,10 @@ export const INITIAL_DATABASE = {
         "Keep arms comfortably long with active shoulders; do not force locked elbows.",
         "Use legs to push hips up and twist torso to reach next hold.",
       ],
-      mistakes: ["Pulling harder with the arms than the task needs.", "Forcing a hip turn when a frontal position works better."],
+      mistakes: [
+        "Pulling harder with the arms than the task needs.",
+        "Forcing a hip turn when a frontal position works better.",
+      ],
     },
     {
       id: "d5",
