@@ -9,6 +9,7 @@ import {
   roundSplit,
   formatTime,
   normalizeConfig,
+  completedIntervals,
 } from "../src/utils/workoutTimer.js";
 import {
   BODY_TENSION_DRILLS,
@@ -131,6 +132,36 @@ test("input bounds and hour formatting", () => {
   assert.equal(formatTime(3605), "1:00:05");
   assert.equal(formatTime(2.1), "00:03");
   assert.equal(formatTime(2.9, true), "00:02");
+});
+
+test("small browser ticks retain exact millisecond timing at phase boundaries", () => {
+  const phases = buildPhases({
+    mode: "tabata",
+    intro: 3,
+    work: 4,
+    rest: 4,
+    rounds: 2,
+  });
+  let run = running();
+  for (let i = 0; i < 190; i++) run = advanceRun(run, 0.1, phases);
+  assert.equal(run.status, "complete");
+  assert.equal(run.elapsed, 16);
+  assert.equal(formatTime(run.elapsed, true), "00:16");
+});
+
+test("completed intervals are counted without requiring manual lap taps", () => {
+  const phases = buildPhases({
+    mode: "tabata",
+    work: 2,
+    rest: 2,
+    rounds: 2,
+    intro: 0,
+  });
+  const firstRest = advanceRun(running(), 2, phases);
+  assert.equal(completedIntervals(firstRest, phases), 1);
+  const done = advanceRun(firstRest, 6, phases);
+  assert.equal(done.countedRounds, 0);
+  assert.equal(completedIntervals(done, phases), 2);
 });
 test("complete dated program has all sixteen drills and suggested 120-minute flow", () => {
   assert.equal(BODY_TENSION_DRILLS.length, 16);

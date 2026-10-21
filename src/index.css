@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "./theme/design-tokens.css";
+@import "../tailwind-theme.css";
+@import "./ui.css";
 
 @layer utilities {
   .pb-safe {
@@ -7,17 +10,18 @@
 }
 
 /* Ensure smooth scrolling and prevent overscroll bounce on mobile */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
-  background-color: #0f172a;
+  background-color: var(--bt-bg);
   -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  -webkit-user-select: none;
+  color: var(--bt-text);
+  font-family: var(--bt-font);
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: #f8fafc;
+  background-color: var(--bt-bg);
 }

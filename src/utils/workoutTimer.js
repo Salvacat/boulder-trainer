@@ -182,9 +182,13 @@ export function advanceRun(run, seconds, phases) {
       Math.max(0, phase.duration - next.phaseElapsed),
     );
     // Preparation is not part of the athlete's score or round splits.
-    if (phase.kind !== 'prepare') next.elapsed += consumed;
-    next.phaseElapsed += consumed;
-    remaining -= consumed;
+    // Wall-clock input is millisecond precision. Keep that precision while
+    // accumulating small ticks so 16 seconds cannot become 15.999999999.
+    if (phase.kind !== "prepare")
+      next.elapsed = Math.round((next.elapsed + consumed) * 1000) / 1000;
+    next.phaseElapsed =
+      Math.round((next.phaseElapsed + consumed) * 1000) / 1000;
+    remaining = Math.max(0, Math.round((remaining - consumed) * 1000) / 1000);
     if (next.phaseElapsed < phase.duration) break;
     next.index++;
     next.phaseElapsed = 0;
@@ -230,6 +234,16 @@ export function roundSplit(run) {
       },
     ],
   };
+}
+export function completedIntervals(run, phases) {
+  const finished = phases
+    .slice(0, run.index)
+    .filter((p) => p.kind === "work").length;
+  const active = phases[run.index];
+  return (
+    finished +
+    (active?.deathBy ? Math.floor(run.phaseElapsed / active.interval) : 0)
+  );
 }
 export function formatTime(seconds, up = false) {
   if (!Number.isFinite(seconds)) return "—";

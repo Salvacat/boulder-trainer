@@ -1,39 +1,88 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Search, BookOpen, Dumbbell, Lightbulb, ChevronRight, ChevronDown, 
-  Map, Target, AlertTriangle, CheckCircle2, XCircle, Info, Play, 
-  Star, Plus, Timer, Edit3, Users, QrCode, Cloud, Tag, X,
-  ShoppingBag, Sparkles, Filter, Check, Award
-} from 'lucide-react';
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  Search,
+  BookOpen,
+  Dumbbell,
+  Lightbulb,
+  ChevronRight,
+  ChevronDown,
+  Map,
+  Target,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Info,
+  Play,
+  Star,
+  Plus,
+  Timer,
+  Edit3,
+  Users,
+  QrCode,
+  Cloud,
+  Tag,
+  X,
+  ShoppingBag,
+  Sparkles,
+  Filter,
+  Check,
+  Award,
+} from "lucide-react";
 
-import { INITIAL_DATABASE, DEFAULT_TAGS } from './data/initialData';
-import DemonstrationVisual from './components/DemonstrationVisual';
-import RouteDrawer from './components/RouteDrawer';
-import DrillTimerModal from './components/DrillTimerModal';
-import BodyTensionSession from './components/BodyTensionSession';
-import { BODY_TENSION_DRILLS, BODY_TENSION_SESSION } from './data/bodyTension';
-import { DEFAULT_CONFIG, normalizeConfig, buildPhases } from './utils/workoutTimer';
-import SessionBuilderDrawer from './components/SessionBuilderDrawer';
-import StudentManager from './components/StudentManager';
-import QuickAddDrillModal from './components/QuickAddDrillModal';
-import FeedbackQrModal from './components/FeedbackQrModal';
-import SyncModal from './components/SyncModal';
+import { INITIAL_DATABASE, DEFAULT_TAGS } from "./data/initialData";
+import DemonstrationVisual from "./components/DemonstrationVisual";
+import RouteDrawer from "./components/RouteDrawer";
+import DrillTimerModal from "./components/DrillTimerModal";
+import AppShell from "./components/AppShell";
+import SessionLibrary from "./components/SessionLibrary";
+import SessionDetail from "./components/SessionDetail";
+import TimerHome from "./components/TimerHome";
+import { modeConfig } from "./data/timerModes";
+import {
+  TRAINING_SESSIONS,
+  sessionTimerConfig,
+  appendSessionItems,
+} from "./data/sessions";
+import {
+  normalizeConfig,
+  buildPhases,
+  readStorage,
+} from "./utils/workoutTimer";
+import SessionBuilderDrawer from "./components/SessionPlan";
+import StudentManager from "./components/StudentManager";
+import QuickAddDrillModal from "./components/QuickAddDrillModal";
+import FeedbackQrModal from "./components/FeedbackQrModal";
+import SyncModal from "./components/SyncModal";
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>
+const Card = ({ children, className = "" }) => (
+  <div
+    className={`bt-legacy-card bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}
+  >
     {children}
   </div>
 );
 
 export default function TrainerApp() {
   // Navigation & UI States
-  const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'concepts', 'drills', 'students', 'tools'
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("sessions");
+  const [libraryView, setLibraryView] = useState("drills");
+  const [coachView, setCoachView] = useState("tools");
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [sessionBookmarks, setSessionBookmarks] = useState(() =>
+    readStorage("boulder_session_bookmarks", []),
+  );
+  useEffect(() => {
+    localStorage.setItem(
+      "boulder_session_bookmarks",
+      JSON.stringify(sessionBookmarks),
+    );
+  }, [sessionBookmarks]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   // Accordion States
-  const [expandedCourse, setExpandedCourse] = useState('c1');
+  const [expandedCourse, setExpandedCourse] = useState("c1");
   const [expandedDay, setExpandedDay] = useState(1);
   const [expandedDrills, setExpandedDrills] = useState({});
   const [expandedConcept, setExpandedConcept] = useState(null);
@@ -41,90 +90,132 @@ export default function TrainerApp() {
   // Persistent States (localStorage)
   const [customDrills, setCustomDrills] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_custom_drills');
+      const saved = localStorage.getItem("boulder_custom_drills");
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
 
   const [favorites, setFavorites] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_favorites');
+      const saved = localStorage.getItem("boulder_favorites");
       return saved ? JSON.parse(saved) : [];
-    } catch { return ['d1', 'd3', 'cg']; }
+    } catch {
+      return ["d1", "d3", "cg"];
+    }
   });
 
   const [sessionItems, setSessionItems] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_current_session');
+      const saved = localStorage.getItem("boulder_current_session");
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
 
   const [savedTemplates, setSavedTemplates] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_saved_templates');
-      return saved ? JSON.parse(saved) : [
-        {
-          name: 'Day 1 Core Drills',
-          items: [
-            { id: 'd1', title: 'Silent Feet (Ninja Feet)', type: 'drill', focus: 'Precision Footwork', timerSeconds: null },
-            { id: 'd3', title: 'The Hover Hand (3-Second Rule)', type: 'drill', focus: 'Balance & CoG', timerSeconds: 3 }
-          ]
-        }
-      ];
-    } catch { return []; }
+      const saved = localStorage.getItem("boulder_saved_templates");
+      return saved
+        ? JSON.parse(saved)
+        : [
+            {
+              name: "Day 1 Core Drills",
+              items: [
+                {
+                  id: "d1",
+                  title: "Silent Feet (Ninja Feet)",
+                  type: "drill",
+                  focus: "Precision Footwork",
+                  timerSeconds: null,
+                },
+                {
+                  id: "d3",
+                  title: "The Hover Hand (3-Second Rule)",
+                  type: "drill",
+                  focus: "Balance & CoG",
+                  timerSeconds: 3,
+                },
+              ],
+            },
+          ];
+    } catch {
+      return [];
+    }
   });
 
   const [students, setStudents] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_students');
-      return saved ? JSON.parse(saved) : [
-        {
-          id: 'stud_1',
-          name: 'Sarah Jenkins',
-          className: 'Technique Course 1',
-          goal: 'Footwork precision & stop full crimping',
-          skills: { sk_silent: 'mastered', sk_sticky: 'practicing' },
-          notes: [
-            { id: 'n1', date: 'Oct 2', text: 'Clean footwork on slabs! Remind her to keep thumb open on crimps.' }
-          ]
-        },
-        {
-          id: 'stud_2',
-          name: 'Marc Torres',
-          className: 'Technique Course 1',
-          goal: 'Overhangs & turning in',
-          skills: { sk_turnin: 'practicing' },
-          notes: [
-            { id: 'n2', date: 'Oct 2', text: 'Tends to climb frontally. Twist-Lock drill helped save arm energy.' }
-          ]
-        }
-      ];
-    } catch { return []; }
+      const saved = localStorage.getItem("boulder_students");
+      return saved
+        ? JSON.parse(saved)
+        : [
+            {
+              id: "stud_1",
+              name: "Sarah Jenkins",
+              className: "Technique Course 1",
+              goal: "Footwork precision & stop full crimping",
+              skills: { sk_silent: "mastered", sk_sticky: "practicing" },
+              notes: [
+                {
+                  id: "n1",
+                  date: "Oct 2",
+                  text: "Clean footwork on slabs! Remind her to keep thumb open on crimps.",
+                },
+              ],
+            },
+            {
+              id: "stud_2",
+              name: "Marc Torres",
+              className: "Technique Course 1",
+              goal: "Overhangs & turning in",
+              skills: { sk_turnin: "practicing" },
+              notes: [
+                {
+                  id: "n2",
+                  date: "Oct 2",
+                  text: "Tends to climb frontally. Twist-Lock drill helped save arm energy.",
+                },
+              ],
+            },
+          ];
+    } catch {
+      return [];
+    }
   });
 
   const [customMediaUrls, setCustomMediaUrls] = useState(() => {
     try {
-      const saved = localStorage.getItem('boulder_custom_media');
+      const saved = localStorage.getItem("boulder_custom_media");
       return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   });
 
   // Modal Dialog States
   const [isRouteDrawerOpen, setIsRouteDrawerOpen] = useState(false);
   const [activeTimerConfig, setActiveTimerConfig] = useState(() => {
-    if (!location.hash.startsWith('#timer=')) return null;
+    if (!location.hash.startsWith("#timer=")) return null;
     try {
       const shared = JSON.parse(decodeURIComponent(location.hash.slice(7)));
       const config = normalizeConfig(shared.config);
       buildPhases(config);
-      return { title: typeof shared.title === 'string' ? shared.title : 'Shared workout', config };
-    } catch { return null; }
+      return {
+        title:
+          typeof shared.title === "string" ? shared.title : "Shared workout",
+        config,
+      };
+    } catch {
+      return null;
+    }
   });
   useEffect(() => {
-    if (activeTimerConfig?.config && location.hash.startsWith('#timer=')) {
+    if (activeTimerConfig?.config && location.hash.startsWith("#timer=")) {
       // Import once so a later refresh can resume a saved workout normally.
-      history.replaceState(null, '', location.pathname + location.search);
+      history.replaceState(null, "", location.pathname + location.search);
     }
   }, [activeTimerConfig]);
   const [isSessionDrawerOpen, setIsSessionDrawerOpen] = useState(false);
@@ -134,27 +225,36 @@ export default function TrainerApp() {
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('boulder_custom_drills', JSON.stringify(customDrills));
+    localStorage.setItem("boulder_custom_drills", JSON.stringify(customDrills));
   }, [customDrills]);
 
   useEffect(() => {
-    localStorage.setItem('boulder_favorites', JSON.stringify(favorites));
+    localStorage.setItem("boulder_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
   useEffect(() => {
-    localStorage.setItem('boulder_current_session', JSON.stringify(sessionItems));
+    localStorage.setItem(
+      "boulder_current_session",
+      JSON.stringify(sessionItems),
+    );
   }, [sessionItems]);
 
   useEffect(() => {
-    localStorage.setItem('boulder_saved_templates', JSON.stringify(savedTemplates));
+    localStorage.setItem(
+      "boulder_saved_templates",
+      JSON.stringify(savedTemplates),
+    );
   }, [savedTemplates]);
 
   useEffect(() => {
-    localStorage.setItem('boulder_students', JSON.stringify(students));
+    localStorage.setItem("boulder_students", JSON.stringify(students));
   }, [students]);
 
   useEffect(() => {
-    localStorage.setItem('boulder_custom_media', JSON.stringify(customMediaUrls));
+    localStorage.setItem(
+      "boulder_custom_media",
+      JSON.stringify(customMediaUrls),
+    );
   }, [customMediaUrls]);
 
   // Merge default + custom drills
@@ -164,14 +264,14 @@ export default function TrainerApp() {
 
   // --- FAVORITES TOGGLE ---
   const toggleFavorite = (id) => {
-    setFavorites(prev => 
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
     );
   };
 
   // --- SESSION BUILDER ACTIONS ---
-  const addToSession = (item, type = 'drill') => {
-    if (sessionItems.some(i => i.id === item.id)) {
+  const addToSession = (item, type = "drill") => {
+    if (sessionItems.some((i) => i.id === item.id)) {
       setIsSessionDrawerOpen(true);
       return;
     }
@@ -183,20 +283,20 @@ export default function TrainerApp() {
       focus: item.focus,
       timerSeconds: item.timerSeconds,
       tags: item.tags,
-      completed: false
+      completed: false,
     };
-    setSessionItems(prev => [...prev, newItem]);
+    setSessionItems((prev) => [...prev, newItem]);
     setIsSessionDrawerOpen(true);
   };
 
   const removeFromSession = (id) => {
-    setSessionItems(prev => prev.filter(i => i.id !== id));
+    setSessionItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   const toggleSessionItemComplete = (id) => {
-    setSessionItems(prev => prev.map(i => 
-      i.id === id ? { ...i, completed: !i.completed } : i
-    ));
+    setSessionItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, completed: !i.completed } : i)),
+    );
   };
 
   const clearSession = () => {
@@ -205,159 +305,136 @@ export default function TrainerApp() {
 
   const saveSessionTemplate = (name) => {
     const newTmpl = { name, items: sessionItems };
-    setSavedTemplates(prev => [...prev.filter(t => t.name !== name), newTmpl]);
+    setSavedTemplates((prev) => [
+      ...prev.filter((t) => t.name !== name),
+      newTmpl,
+    ]);
   };
 
   const loadSessionTemplate = (tmpl) => {
-    setSessionItems(tmpl.items.map(i => ({ ...i, completed: false })));
+    setSessionItems(tmpl.items.map((i) => ({ ...i, completed: false })));
   };
 
   const deleteSessionTemplate = (name) => {
-    setSavedTemplates(prev => prev.filter(t => t.name !== name));
+    setSavedTemplates((prev) => prev.filter((t) => t.name !== name));
   };
 
   const toggleDrill = (id) => {
-    setExpandedDrills(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedDrills((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleUpdateMediaUrl = (drillId, url) => {
-    setCustomMediaUrls(prev => ({ ...prev, [drillId]: url }));
+    setCustomMediaUrls((prev) => ({ ...prev, [drillId]: url }));
   };
 
   // --- SEARCH & FILTER LOGIC ---
   const filteredConcepts = useMemo(() => {
-    return INITIAL_DATABASE.concepts.filter(c => {
+    return INITIAL_DATABASE.concepts.filter((c) => {
       if (onlyFavorites && !favorites.includes(c.id)) return false;
-      if (selectedTag && (!c.tags || !c.tags.includes(selectedTag))) return false;
+      if (selectedTag && (!c.tags || !c.tags.includes(selectedTag)))
+        return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        return c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
+        return (
+          c.title.toLowerCase().includes(q) ||
+          c.desc.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q)
+        );
       }
       return true;
     });
   }, [searchQuery, selectedTag, onlyFavorites, favorites]);
 
   const filteredDrills = useMemo(() => {
-    return allDrills.filter(d => {
+    return allDrills.filter((d) => {
       if (onlyFavorites && !favorites.includes(d.id)) return false;
-      if (selectedTag && (!d.tags || !d.tags.includes(selectedTag))) return false;
+      if (selectedTag && (!d.tags || !d.tags.includes(selectedTag)))
+        return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        return d.title.toLowerCase().includes(q) || 
-               d.desc.toLowerCase().includes(q) || 
-               d.focus.toLowerCase().includes(q) ||
-               (d.execution && d.execution.some(e => e.toLowerCase().includes(q))) ||
-               (d.tags && d.tags.some(t => t.toLowerCase().includes(q)));
+        return (
+          d.title.toLowerCase().includes(q) ||
+          d.desc.toLowerCase().includes(q) ||
+          d.focus.toLowerCase().includes(q) ||
+          (d.execution &&
+            d.execution.some((e) => e.toLowerCase().includes(q))) ||
+          (d.tags && d.tags.some((t) => t.toLowerCase().includes(q)))
+        );
       }
       return true;
     });
   }, [allDrills, searchQuery, selectedTag, onlyFavorites, favorites]);
 
-  // --- RENDER TOP SEARCH AREA ---
+  const navigate = (tab) => {
+    setActiveTab(tab);
+    setSearchQuery("");
+    setSelectedTag(null);
+    setOnlyFavorites(false);
+    setSelectedSessionId(null);
+    setActiveTimerConfig(null);
+  };
   const renderTopBar = () => (
-    <header className="sticky top-0 bg-slate-900 pt-3 pb-2 px-3 z-30 shadow-md">
-      <div className="max-w-md mx-auto space-y-2">
-        {/* Search Input & Quick Action Icons */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search drills, grips, tags..." 
-              className="w-full bg-slate-800 text-white placeholder-slate-400 rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Favorites Filter Button */}
-          <button
-            onClick={() => setOnlyFavorites(!onlyFavorites)}
-            title="Show Starred Only"
-            className={`p-2 rounded-xl border transition-all ${
-              onlyFavorites 
-                ? 'bg-amber-500 border-amber-400 text-white shadow-md' 
-                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400'
-            }`}
-          >
-            <Star size={16} fill={onlyFavorites ? "currentColor" : "none"} />
+    <div className="bt-library-search">
+      <div className="bt-search-input">
+        <Search size={19} />
+        <input
+          aria-label="Search the library"
+          placeholder="Search drills, movement, tags…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button aria-label="Clear search" onClick={() => setSearchQuery("")}>
+            <X size={17} />
           </button>
-
-          {/* Interactive Route Drawer Shortcut */}
-          <button
-            onClick={() => setIsRouteDrawerOpen(true)}
-            title="Open Route Drawer (Chalkboard)"
-            className="p-2 bg-slate-800 border border-slate-700 hover:border-emerald-500 text-emerald-400 hover:text-white rounded-xl transition-all"
-          >
-            <Edit3 size={16} />
-          </button>
-
-          {/* Session Builder Cart Tray */}
-          <button
-            onClick={() => setIsSessionDrawerOpen(true)}
-            title="Open Custom Session Builder"
-            className="relative p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all shadow-md"
-          >
-            <ShoppingBag size={16} />
-            {sessionItems.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow">
-                {sessionItems.length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Quick Tag Filtering Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-[11px]">
-          <button
-            onClick={() => setSelectedTag(null)}
-            className={`px-2.5 py-0.5 rounded-full font-medium transition-all shrink-0 ${
-              selectedTag === null && !onlyFavorites
-                ? 'bg-emerald-500 text-slate-950 font-bold' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            All
-          </button>
-          {DEFAULT_TAGS.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-              className={`px-2 py-0.5 rounded-full font-medium transition-all shrink-0 ${
-                selectedTag === tag 
-                  ? 'bg-emerald-500 text-slate-950 font-bold' 
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
+        )}
       </div>
-    </header>
+      <button
+        className={
+          onlyFavorites ? "bt-icon-button is-active" : "bt-icon-button"
+        }
+        aria-label="Show favorites only"
+        aria-pressed={onlyFavorites}
+        onClick={() => setOnlyFavorites((v) => !v)}
+      >
+        <Star size={19} fill={onlyFavorites ? "currentColor" : "none"} />
+      </button>
+      <div className="bt-tag-row">
+        <button
+          className={!selectedTag ? "is-active" : ""}
+          onClick={() => setSelectedTag(null)}
+        >
+          All topics
+        </button>
+        {DEFAULT_TAGS.map((tag) => (
+          <button
+            key={tag}
+            className={selectedTag === tag ? "is-active" : ""}
+            onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+          >
+            {tag.replace("#", "")}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 
   // --- DRILL CARD COMPONENT ---
   const renderDrillCard = (d) => {
     const isExpanded = expandedDrills[d.id];
     const isFav = favorites.includes(d.id);
-    const inSession = sessionItems.some(i => i.id === d.id);
+    const inSession = sessionItems.some((i) => i.id === d.id);
     const customMedia = customMediaUrls[d.id];
 
     return (
-      <Card key={d.id} className="border-l-4 border-l-blue-500 mb-3.5 transition-all">
+      <Card
+        key={d.id}
+        className="border-l-4 border-l-blue-500 mb-3.5 transition-all"
+      >
         {/* Card Header & Controls */}
         <div className="p-3 sm:p-4 hover:bg-slate-50 transition-colors">
           <div className="flex items-start justify-between gap-2">
-            <button 
+            <button
               onClick={() => toggleDrill(d.id)}
               className="text-left flex-1 min-w-0"
             >
@@ -382,16 +459,22 @@ export default function TrainerApp() {
             {/* Quick Actions (Favorite & Add to Session) */}
             <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={(e) => { e.stopPropagation(); toggleFavorite(d.id); }}
-                className={`p-1.5 rounded-lg transition-colors ${isFav ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(d.id);
+                }}
+                className={`p-1.5 rounded-lg transition-colors ${isFav ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-slate-500"}`}
                 title={isFav ? "Remove Favorite" : "Favorite Drill"}
               >
                 <Star size={16} fill={isFav ? "currentColor" : "none"} />
               </button>
 
               <button
-                onClick={(e) => { e.stopPropagation(); addToSession(d, 'drill'); }}
-                className={`p-1.5 rounded-lg transition-colors ${inSession ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 hover:bg-slate-200'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToSession(d, "drill");
+                }}
+                className={`p-1.5 rounded-lg transition-colors ${inSession ? "text-emerald-700 bg-emerald-100" : "text-slate-500 hover:bg-slate-200"}`}
                 title="Add to Daily Session Plan"
               >
                 <Plus size={16} />
@@ -401,7 +484,11 @@ export default function TrainerApp() {
                 onClick={() => toggleDrill(d.id)}
                 className="text-blue-500 bg-blue-50 p-1.5 rounded-full hover:bg-blue-100 ml-0.5"
               >
-                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {isExpanded ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                )}
               </button>
             </div>
           </div>
@@ -409,10 +496,15 @@ export default function TrainerApp() {
           {/* Tag Pills */}
           {d.tags && d.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {d.tags.map(t => (
+              {d.tags.map((t) => (
                 <button
                   key={t}
-                  onClick={(e) => { e.stopPropagation(); setSelectedTag(t); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTag(t);
+                    setActiveTab("library");
+                    setLibraryView("drills");
+                  }}
                   className="text-[10px] bg-slate-100 text-slate-500 hover:bg-slate-200 px-2 py-0.5 rounded"
                 >
                   {t}
@@ -430,11 +522,22 @@ export default function TrainerApp() {
               <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
                 <Timer size={16} className="text-emerald-600" />
                 <span>
-                  {d.timerSeconds ? `${d.timerSeconds}-Second Drill Timer` : 'Floor Stopwatch / Interval Timer'}
+                  {d.timerSeconds
+                    ? `${d.timerSeconds}-Second Drill Timer`
+                    : "Floor Stopwatch / Interval Timer"}
                 </span>
               </div>
               <button
-                onClick={() => setActiveTimerConfig({ seconds: d.timerSeconds || 3, title: d.title })}
+                onClick={() =>
+                  setActiveTimerConfig({
+                    config: {
+                      ...modeConfig("countdown"),
+                      duration: d.timerSeconds || 180,
+                      intro: 0,
+                    },
+                    title: d.title,
+                  })
+                }
                 className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
               >
                 <Play size={12} /> Start Timer
@@ -444,7 +547,8 @@ export default function TrainerApp() {
             {/* Visual & Media Demonstration (Looping GIF / Animated SVG) */}
             <div>
               <h4 className="font-semibold text-slate-800 text-xs flex items-center gap-1.5 mb-1">
-                <Sparkles size={14} className="text-amber-500" /> Movement Demonstration
+                <Sparkles size={14} className="text-amber-500" /> Movement
+                Demonstration
               </h4>
               <DemonstrationVisual
                 visualType={d.visualType}
@@ -457,7 +561,7 @@ export default function TrainerApp() {
             {d.setup && (
               <div>
                 <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
-                  <Map size={14} className="text-slate-500"/> Environment Setup
+                  <Map size={14} className="text-slate-500" /> Environment Setup
                 </h4>
                 <p className="text-xs text-slate-600 pl-4">{d.setup}</p>
               </div>
@@ -467,11 +571,14 @@ export default function TrainerApp() {
             {d.execution && (
               <div>
                 <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
-                  <CheckCircle2 size={14} className="text-emerald-500"/> Execution Steps
+                  <CheckCircle2 size={14} className="text-emerald-500" />{" "}
+                  Execution Steps
                 </h4>
                 <ol className="list-decimal list-outside pl-4 space-y-1">
                   {d.execution.map((step, idx) => (
-                    <li key={idx} className="text-xs text-slate-600 pl-1">{step}</li>
+                    <li key={idx} className="text-xs text-slate-600 pl-1">
+                      {step}
+                    </li>
                   ))}
                 </ol>
               </div>
@@ -481,11 +588,14 @@ export default function TrainerApp() {
             {d.mistakes && (
               <div>
                 <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs mb-1">
-                  <XCircle size={14} className="text-red-500"/> Common Mistakes to Watch For
+                  <XCircle size={14} className="text-red-500" /> Common Mistakes
+                  to Watch For
                 </h4>
                 <ul className="list-disc list-outside pl-4 space-y-1">
                   {d.mistakes.map((mistake, idx) => (
-                    <li key={idx} className="text-xs text-slate-600 pl-1">{mistake}</li>
+                    <li key={idx} className="text-xs text-slate-600 pl-1">
+                      {mistake}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -499,81 +609,108 @@ export default function TrainerApp() {
   // --- RENDER COURSES TAB ---
   const renderCourses = () => (
     <div className="p-4 space-y-4 pb-28 max-w-md mx-auto">
-      <BodyTensionSession
-        renderDrill={renderDrillCard}
-        onAddSession={() => {
-          setSessionItems(items => [...items, ...BODY_TENSION_DRILLS.filter(d => !items.some(i => i.id === d.id)).map(d => ({ ...d, type: 'drill', completed: false }))]);
-          setIsSessionDrawerOpen(true);
-        }}
-        onStartTimer={() => setActiveTimerConfig({
-          title: BODY_TENSION_SESSION.title,
-          config: { ...DEFAULT_CONFIG, mode: 'mix', intro: 10, blocks: BODY_TENSION_SESSION.blocks.map((block, i) => ({
-            ...DEFAULT_CONFIG, id: `bt-block-${i}`, mode: 'work', label: block.title, duration: block.minutes * 60, intro: 0,
-          })) },
-        })}
-      />
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-800">Course Curriculums</h2>
         <span className="text-xs text-slate-500">Bouldering Progression</span>
       </div>
 
-      {INITIAL_DATABASE.courses.map(course => (
+      {INITIAL_DATABASE.courses.map((course) => (
         <Card key={course.id} className="overflow-visible">
-          <button 
+          <button
             className="w-full text-left p-4 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors"
-            onClick={() => setExpandedCourse(expandedCourse === course.id ? null : course.id)}
+            onClick={() =>
+              setExpandedCourse(expandedCourse === course.id ? null : course.id)
+            }
           >
             <div>
-              <h3 className="font-bold text-base text-slate-800">{course.title}</h3>
+              <h3 className="font-bold text-base text-slate-800">
+                {course.title}
+              </h3>
               <p className="text-xs text-slate-500">{course.level}</p>
             </div>
-            {expandedCourse === course.id ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            {expandedCourse === course.id ? (
+              <ChevronDown size={18} />
+            ) : (
+              <ChevronRight size={18} />
+            )}
           </button>
-          
+
           {expandedCourse === course.id && (
             <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-4">
               <div className="grid grid-cols-1 gap-3">
                 <div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <AlertTriangle size={13}/> Prerequisites
+                    <AlertTriangle size={13} /> Prerequisites
                   </h4>
-                  <p className="text-xs text-slate-700 leading-relaxed">{course.prerequisites}</p>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    {course.prerequisites}
+                  </p>
                 </div>
                 <div className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <Target size={13}/> Target Audience
+                    <Target size={13} /> Target Audience
                   </h4>
-                  <p className="text-xs text-slate-700 leading-relaxed">{course.target}</p>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    {course.target}
+                  </p>
                 </div>
               </div>
 
               {course.days && (
                 <div className="mt-3 space-y-2">
                   <h4 className="font-bold text-slate-800 flex items-center gap-1.5 text-xs mb-2">
-                    <Map size={15} className="text-emerald-600"/> 4-Week Lesson Plans
+                    <Map size={15} className="text-emerald-600" /> 4-Week Lesson
+                    Plans
                   </h4>
-                  {course.days.map(day => (
-                    <div key={day.day} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-                      <button 
+                  {course.days.map((day) => (
+                    <div
+                      key={day.day}
+                      className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+                    >
+                      <button
                         className="w-full text-left px-3.5 py-2.5 flex justify-between items-center hover:bg-slate-50 text-xs font-semibold text-slate-700"
-                        onClick={() => setExpandedDay(expandedDay === day.day ? null : day.day)}
+                        onClick={() =>
+                          setExpandedDay(
+                            expandedDay === day.day ? null : day.day,
+                          )
+                        }
                       >
-                        <span>Day {day.day}: {day.title}</span>
-                        {expandedDay === day.day ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                        <span>
+                          Day {day.day}: {day.title}
+                        </span>
+                        {expandedDay === day.day ? (
+                          <ChevronDown size={14} />
+                        ) : (
+                          <ChevronRight size={14} />
+                        )}
                       </button>
                       {expandedDay === day.day && (
                         <div className="px-3.5 pb-3 pt-1 border-t border-slate-100">
                           <ul className="space-y-2 mt-1">
                             {day.activities.map((act, i) => {
-                              const [boldPart, rest] = act.includes(':') ? act.split(':') : [act, ''];
+                              const [boldPart, rest] = act.includes(":")
+                                ? act.split(":")
+                                : [act, ""];
                               return (
-                                <li key={i} className="text-xs text-slate-600 flex items-start gap-2 leading-relaxed">
+                                <li
+                                  key={i}
+                                  className="text-xs text-slate-600 flex items-start gap-2 leading-relaxed"
+                                >
                                   <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                                   <span>
-                                    {rest ? <><strong className="text-slate-800 font-semibold">{boldPart}:</strong>{rest}</> : boldPart}
+                                    {rest ? (
+                                      <>
+                                        <strong className="text-slate-800 font-semibold">
+                                          {boldPart}:
+                                        </strong>
+                                        {rest}
+                                      </>
+                                    ) : (
+                                      boldPart
+                                    )}
                                   </span>
                                 </li>
-                              )
+                              );
                             })}
                           </ul>
                         </div>
@@ -585,12 +722,17 @@ export default function TrainerApp() {
 
               {course.topics && (
                 <div className="mt-3">
-                  <h4 className="font-bold text-slate-800 text-xs mb-2">Curriculum Topics</h4>
+                  <h4 className="font-bold text-slate-800 text-xs mb-2">
+                    Curriculum Topics
+                  </h4>
                   <ul className="grid gap-1.5">
                     {course.topics.map((topic, i) => (
-                      <li key={i} className="bg-white p-2.5 rounded shadow-sm text-xs text-slate-700 flex items-start gap-2 border border-slate-100">
-                         <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-                         {topic}
+                      <li
+                        key={i}
+                        className="bg-white p-2.5 rounded shadow-sm text-xs text-slate-700 flex items-start gap-2 border border-slate-100"
+                      >
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                        {topic}
                       </li>
                     ))}
                   </ul>
@@ -611,25 +753,34 @@ export default function TrainerApp() {
           <Lightbulb className="text-emerald-600" size={22} />
           <h2 className="text-xl font-bold text-slate-800">Concept Library</h2>
         </div>
-        <span className="text-xs text-slate-500">{filteredConcepts.length} concepts</span>
+        <span className="text-xs text-slate-500">
+          {filteredConcepts.length} concepts
+        </span>
       </div>
 
       <div className="space-y-3">
-        {filteredConcepts.map(c => {
+        {filteredConcepts.map((c) => {
           const isExpanded = expandedConcept === c.id;
           const isFav = favorites.includes(c.id);
-          const inSession = sessionItems.some(i => i.id === c.id);
-          const associatedDrills = c.drillIds ? allDrills.filter(d => c.drillIds.includes(d.id)) : [];
+          const inSession = sessionItems.some((i) => i.id === c.id);
+          const associatedDrills = c.drillIds
+            ? allDrills.filter((d) => c.drillIds.includes(d.id))
+            : [];
 
           return (
-            <Card key={c.id} className={`transition-all border-t-4 ${isExpanded ? 'border-t-emerald-600 shadow-md ring-1 ring-emerald-100' : 'border-t-emerald-400'}`}>
+            <Card
+              key={c.id}
+              className={`transition-all border-t-4 ${isExpanded ? "border-t-emerald-600 shadow-md ring-1 ring-emerald-100" : "border-t-emerald-400"}`}
+            >
               <div className="p-4">
                 <div className="flex justify-between items-start">
-                  <button 
+                  <button
                     onClick={() => setExpandedConcept(isExpanded ? null : c.id)}
                     className="text-left flex-1"
                   >
-                    <h3 className="font-bold text-base text-slate-800">{c.title}</h3>
+                    <h3 className="font-bold text-base text-slate-800">
+                      {c.title}
+                    </h3>
                     <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded mt-1 font-medium">
                       {c.category}
                     </span>
@@ -638,23 +789,29 @@ export default function TrainerApp() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => toggleFavorite(c.id)}
-                      className={`p-1.5 rounded-lg ${isFav ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-slate-500'}`}
+                      className={`p-1.5 rounded-lg ${isFav ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-slate-500"}`}
                       title={isFav ? "Remove Favorite" : "Favorite Concept"}
                     >
                       <Star size={16} fill={isFav ? "currentColor" : "none"} />
                     </button>
                     <button
-                      onClick={() => addToSession(c, 'concept')}
-                      className={`p-1.5 rounded-lg ${inSession ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                      onClick={() => addToSession(c, "concept")}
+                      className={`p-1.5 rounded-lg ${inSession ? "text-emerald-700 bg-emerald-100" : "text-slate-500 hover:bg-slate-100"}`}
                       title="Add to Daily Session Plan"
                     >
                       <Plus size={16} />
                     </button>
                     <button
-                      onClick={() => setExpandedConcept(isExpanded ? null : c.id)}
-                      className={`p-1.5 rounded-full ${isExpanded ? 'text-emerald-700 bg-emerald-100' : 'text-slate-400 bg-slate-50'}`}
+                      onClick={() =>
+                        setExpandedConcept(isExpanded ? null : c.id)
+                      }
+                      className={`p-1.5 rounded-full ${isExpanded ? "text-emerald-700 bg-emerald-100" : "text-slate-400 bg-slate-50"}`}
                     >
-                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      {isExpanded ? (
+                        <ChevronDown size={16} />
+                      ) : (
+                        <ChevronRight size={16} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -667,26 +824,35 @@ export default function TrainerApp() {
               {isExpanded && associatedDrills.length > 0 && (
                 <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/60">
                   <h4 className="font-semibold text-slate-800 text-xs mb-2.5 flex items-center gap-1.5">
-                    <Dumbbell size={14} className="text-blue-500" /> Apply this concept with these drills:
+                    <Dumbbell size={14} className="text-blue-500" /> Apply this
+                    concept with these drills:
                   </h4>
                   <div className="space-y-2">
-                    {associatedDrills.map(d => (
-                       <div key={d.id} className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="font-semibold text-slate-700 text-xs block truncate">{d.title}</span>
-                            <span className="text-[10px] text-slate-400">{d.focus}</span>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setActiveTab('drills');
-                              setExpandedDrills({ [d.id]: true });
-                              setSearchQuery(d.title);
-                            }}
-                            className="text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors flex items-center gap-1 shrink-0"
-                          >
-                            <Play size={10} /> View Drill
-                          </button>
-                       </div>
+                    {associatedDrills.map((d) => (
+                      <div
+                        key={d.id}
+                        className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-semibold text-slate-700 text-xs block truncate">
+                            {d.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {d.focus}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setActiveTab("library");
+                            setLibraryView("drills");
+                            setExpandedDrills({ [d.id]: true });
+                            setSearchQuery(d.title);
+                          }}
+                          className="text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors flex items-center gap-1 shrink-0"
+                        >
+                          <Play size={10} /> View Drill
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -704,7 +870,9 @@ export default function TrainerApp() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Dumbbell className="text-blue-600" size={22} />
-          <h2 className="text-xl font-bold text-slate-800">Drills & Exercises</h2>
+          <h2 className="text-xl font-bold text-slate-800">
+            Drills & Exercises
+          </h2>
         </div>
         <button
           onClick={() => setIsQuickAddOpen(true)}
@@ -720,7 +888,9 @@ export default function TrainerApp() {
         ) : (
           <div className="text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200 p-6">
             <p className="font-semibold">No drills match your filter.</p>
-            <p className="text-xs text-slate-400 mt-1">Try clearing your search query or selecting "All" tags.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Try clearing your search query or selecting "All" tags.
+            </p>
           </div>
         )}
       </div>
@@ -731,7 +901,7 @@ export default function TrainerApp() {
   const renderTools = () => (
     <div className="p-4 pb-28 max-w-md mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800">Interactive Floor Tools</h2>
+        <h2 className="text-xl font-bold text-slate-800">On the gym floor</h2>
         <span className="text-xs text-slate-500">Coach Toolkit</span>
       </div>
 
@@ -744,9 +914,13 @@ export default function TrainerApp() {
                 <Edit3 size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-800">Route Drawer (Chalkboard)</h3>
+                <h3 className="font-bold text-sm text-slate-800">
+                  Route Drawer (Chalkboard)
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                  Snap a photo of the boulder wall on your phone, then draw colored beta lines, arrows, and hold numbers to explain routes.
+                  Snap a photo of the boulder wall on your phone, then draw
+                  colored beta lines, arrows, and hold numbers to explain
+                  routes.
                 </p>
               </div>
             </div>
@@ -759,27 +933,6 @@ export default function TrainerApp() {
           </button>
         </Card>
 
-        {/* Tool 2: Floor Stopwatch & Interval Timer */}
-        <Card className="p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-              <Timer size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-800">Floor Stopwatch & Timers</h3>
-              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                AMRAP, For Time, EMOM, Tabata and MIX workouts, plus countdowns, intervals and stopwatch. Save presets, count rounds, track splits and use the gym display.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveTimerConfig({ seconds: 3, title: 'Floor Exercise Timer' })}
-            className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <Play size={14} /> Open Timer
-          </button>
-        </Card>
-
         {/* Tool 3: Custom Daily Session Cart */}
         <Card className="p-4 hover:shadow-md transition-shadow">
           <div className="flex items-start gap-3">
@@ -787,9 +940,12 @@ export default function TrainerApp() {
               <ShoppingBag size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-800">Custom Session Builder</h3>
+              <h3 className="font-bold text-sm text-slate-800">
+                Custom Session Builder
+              </h3>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Assemble custom daily lesson plans (1 Warm-up, 2 Concepts, 3 Drills) on the fly and check off completed items.
+                Build a plan, change the drill order, start timers and check off
+                progress.
               </p>
             </div>
           </div>
@@ -808,9 +964,12 @@ export default function TrainerApp() {
               <QrCode size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-800">Course Feedback QR Code</h3>
+              <h3 className="font-bold text-sm text-slate-800">
+                Course Feedback QR Code
+              </h3>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Generate a full-screen QR code on your phone for students to scan with their cameras at the end of Day 4.
+                Generate a full-screen QR code on your phone for students to
+                scan with their cameras at the end of Day 4.
               </p>
             </div>
           </div>
@@ -829,9 +988,12 @@ export default function TrainerApp() {
               <Cloud size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-800">Trainer Sync & Backup</h3>
+              <h3 className="font-bold text-sm text-slate-800">
+                Trainer Sync & Backup
+              </h3>
               <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                1-click JSON export/import to share drills with other coaches via WhatsApp or sync to a shared Firebase/Supabase database.
+                Back up your drills, students and saved plans, or import a
+                trainer backup.
               </p>
             </div>
           </div>
@@ -846,131 +1008,246 @@ export default function TrainerApp() {
     </div>
   );
 
+  const selectedSession = TRAINING_SESSIONS.find(
+    (s) => s.id === selectedSessionId,
+  );
+  const selectedDrills = selectedSession
+    ? selectedSession.drillIds
+        .map((id) => allDrills.find((d) => d.id === id))
+        .filter(Boolean)
+    : [];
+  const openTimer = (config) => {
+    setActiveTimerConfig(config);
+    setActiveTab("timer");
+  };
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col text-slate-800">
-      {/* Top Search & Filter Bar */}
-      {renderTopBar()}
-
-      {/* Main Screen Body */}
-      <main className="flex-1 overflow-y-auto">
-        {activeTab === 'courses' && renderCourses()}
-        {activeTab === 'concepts' && renderConcepts()}
-        {activeTab === 'drills' && renderDrills()}
-        {activeTab === 'students' && (
-          <StudentManager students={students} onUpdateStudents={setStudents} />
-        )}
-        {activeTab === 'tools' && renderTools()}
-      </main>
-
-      {/* Bottom Mobile Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe z-40">
-        <div className="flex justify-around items-center p-1.5 max-w-md mx-auto">
-          <button 
-            onClick={() => { setActiveTab('courses'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
-              activeTab === 'courses' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BookOpen size={20} className="mb-0.5" />
-            <span className="text-[11px]">Courses</span>
-          </button>
-          
-          <button 
-            onClick={() => { setActiveTab('concepts'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
-              activeTab === 'concepts' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Lightbulb size={20} className="mb-0.5" />
-            <span className="text-[11px]">Concepts</span>
-          </button>
-
-          <button 
-            onClick={() => { setActiveTab('drills'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
-              activeTab === 'drills' ? 'text-blue-600 bg-blue-50 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Dumbbell size={20} className="mb-0.5" />
-            <span className="text-[11px]">Drills</span>
-          </button>
-
-          <button 
-            onClick={() => { setActiveTab('students'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
-              activeTab === 'students' ? 'text-emerald-600 bg-emerald-50 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Users size={20} className="mb-0.5" />
-            <span className="text-[11px]">Students</span>
-          </button>
-
-          <button 
-            onClick={() => { setActiveTab('tools'); setSearchQuery(''); }}
-            className={`flex flex-col items-center p-2 rounded-xl transition-colors ${
-              activeTab === 'tools' ? 'text-purple-600 bg-purple-50 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Edit3 size={20} className="mb-0.5" />
-            <span className="text-[11px]">Tools</span>
-          </button>
+    <AppShell
+      active={activeTab}
+      onNavigate={navigate}
+      planCount={sessionItems.length}
+      onOpenPlan={() => setIsSessionDrawerOpen(true)}
+    >
+      {activeTab === "sessions" &&
+        (selectedSession ? (
+          <SessionDetail
+            session={selectedSession}
+            drills={selectedDrills}
+            renderDrill={renderDrillCard}
+            onBack={() => setSelectedSessionId(null)}
+            onAdd={() => {
+              setSessionItems((items) =>
+                appendSessionItems(items, selectedDrills),
+              );
+              setIsSessionDrawerOpen(true);
+            }}
+            onTime={() =>
+              openTimer({
+                title: selectedSession.title,
+                config: sessionTimerConfig(selectedSession),
+              })
+            }
+          />
+        ) : (
+          <SessionLibrary
+            templates={savedTemplates}
+            bookmarks={sessionBookmarks}
+            onBookmark={(id) =>
+              setSessionBookmarks((items) =>
+                items.includes(id)
+                  ? items.filter((x) => x !== id)
+                  : [...items, id],
+              )
+            }
+            onSelect={setSelectedSessionId}
+            onLoadTemplate={(template) => {
+              loadSessionTemplate(template);
+              setIsSessionDrawerOpen(true);
+            }}
+            onBuild={() => {
+              navigate("library");
+              setLibraryView("drills");
+            }}
+            planCount={sessionItems.length}
+            onOpenPlan={() => setIsSessionDrawerOpen(true)}
+          />
+        ))}
+      {activeTab === "library" && (
+        <div className="bt-page">
+          <div className="bt-page-heading">
+            <p className="bt-eyebrow">Move with intention</p>
+            <h1>Your climbing library.</h1>
+            <p>Find a drill. Understand a movement. Build a better session.</p>
+          </div>
+          <div className="bt-filter-row">
+            {[
+              ["drills", "Drills"],
+              ["concepts", "Concepts"],
+              ["courses", "Courses"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                className={libraryView === id ? "is-active" : ""}
+                aria-pressed={libraryView === id}
+                onClick={() => {
+                  setLibraryView(id);
+                  setSearchQuery("");
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {libraryView !== "courses" && renderTopBar()}
+          <div className="bt-legacy">
+            {libraryView === "drills" && renderDrills()}
+            {libraryView === "concepts" && renderConcepts()}
+            {libraryView === "courses" && renderCourses()}
+          </div>
         </div>
-      </nav>
-
-      {/* Floating Modals and Drawers */}
-      {isRouteDrawerOpen && (
-        <RouteDrawer onClose={() => setIsRouteDrawerOpen(false)} />
       )}
-
-      {activeTimerConfig && (
-        <DrillTimerModal
-          initialSeconds={activeTimerConfig.seconds}
-          drillTitle={activeTimerConfig.title}
-          initialConfig={activeTimerConfig.config}
-          onClose={() => setActiveTimerConfig(null)}
-        />
+      {activeTab === "timer" &&
+        (activeTimerConfig ? (
+          <DrillTimerModal
+            key={
+              activeTimerConfig.config
+                ? JSON.stringify(activeTimerConfig.config)
+                : activeTimerConfig.title
+            }
+            embedded
+            initialSeconds={activeTimerConfig.seconds}
+            drillTitle={activeTimerConfig.title}
+            initialConfig={activeTimerConfig.config}
+            initialTab={activeTimerConfig.initialTab}
+            onClose={() => setActiveTimerConfig(null)}
+          />
+        ) : (
+          <TimerHome onOpen={openTimer} />
+        ))}
+      {activeTab === "coach" && (
+        <div className="bt-page">
+          <div className="bt-page-heading">
+            <p className="bt-eyebrow">A better session, together</p>
+            <h1>Your coach corner.</h1>
+            <p>Keep your students, plans and floor tools close.</p>
+          </div>
+          <div className="bt-filter-row">
+            {[
+              ["tools", "Toolkit"],
+              ["students", "Students"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                className={coachView === id ? "is-active" : ""}
+                aria-pressed={coachView === id}
+                onClick={() => setCoachView(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="bt-legacy">
+            {coachView === "students" ? (
+              <StudentManager
+                students={students}
+                onUpdateStudents={setStudents}
+              />
+            ) : (
+              renderTools()
+            )}
+          </div>
+        </div>
       )}
+      <div className="bt-legacy">
+        {/* Floating Modals and Drawers */}
+        {isRouteDrawerOpen && (
+          <RouteDrawer onClose={() => setIsRouteDrawerOpen(false)} />
+        )}
 
-      <SessionBuilderDrawer
-        isOpen={isSessionDrawerOpen}
-        sessionItems={sessionItems}
-        onRemoveItem={removeFromSession}
-        onToggleComplete={toggleSessionItemComplete}
-        onClearSession={clearSession}
-        onOpenTimer={(item) => setActiveTimerConfig({ seconds: item.timerSeconds || 3, title: item.title })}
-        savedTemplates={savedTemplates}
-        onSaveTemplate={saveSessionTemplate}
-        onLoadTemplate={loadSessionTemplate}
-        onDeleteTemplate={deleteSessionTemplate}
-        onClose={() => setIsSessionDrawerOpen(false)}
-      />
+        {activeTimerConfig && activeTab !== "timer" && (
+          <DrillTimerModal
+            initialSeconds={activeTimerConfig.seconds}
+            drillTitle={activeTimerConfig.title}
+            initialConfig={activeTimerConfig.config}
+            initialTab={activeTimerConfig.initialTab}
+            onClose={() => setActiveTimerConfig(null)}
+          />
+        )}
 
-      {isQuickAddOpen && (
-        <QuickAddDrillModal
-          onSaveDrill={(newDrill) => setCustomDrills(prev => [newDrill, ...prev])}
-          onClose={() => setIsQuickAddOpen(false)}
-        />
-      )}
-
-      {isFeedbackQrOpen && (
-        <FeedbackQrModal onClose={() => setIsFeedbackQrOpen(false)} />
-      )}
-
-      {isSyncModalOpen && (
-        <SyncModal
-          customDrills={customDrills}
-          students={students}
-          favorites={favorites}
-          savedTemplates={savedTemplates}
-          onImportData={(data) => {
-            if (data.customDrills) setCustomDrills(data.customDrills);
-            if (data.students) setStudents(data.students);
-            if (data.favorites) setFavorites(data.favorites);
-            if (data.savedTemplates) setSavedTemplates(data.savedTemplates);
+        <SessionBuilderDrawer
+          isOpen={isSessionDrawerOpen}
+          onBrowse={() => {
+            setIsSessionDrawerOpen(false);
+            navigate("library");
+            setLibraryView("drills");
           }}
-          onClose={() => setIsSyncModalOpen(false)}
+          sessionItems={sessionItems}
+          onRemoveItem={removeFromSession}
+          onToggleComplete={toggleSessionItemComplete}
+          onClearSession={clearSession}
+          onMoveItem={(id, delta) =>
+            setSessionItems((items) => {
+              const list = [...items],
+                index = list.findIndex((i) => i.id === id);
+              if (
+                index < 0 ||
+                index + delta < 0 ||
+                index + delta >= list.length
+              )
+                return items;
+              [list[index], list[index + delta]] = [
+                list[index + delta],
+                list[index],
+              ];
+              return list;
+            })
+          }
+          onOpenTimer={(item) => {
+            setIsSessionDrawerOpen(false);
+            openTimer({
+              config: {
+                ...modeConfig("countdown"),
+                duration: item.timerSeconds || 180,
+                intro: 0,
+              },
+              title: item.title,
+            });
+          }}
+          savedTemplates={savedTemplates}
+          onSaveTemplate={saveSessionTemplate}
+          onLoadTemplate={loadSessionTemplate}
+          onDeleteTemplate={deleteSessionTemplate}
+          onClose={() => setIsSessionDrawerOpen(false)}
         />
-      )}
-    </div>
+
+        {isQuickAddOpen && (
+          <QuickAddDrillModal
+            onSaveDrill={(newDrill) =>
+              setCustomDrills((prev) => [newDrill, ...prev])
+            }
+            onClose={() => setIsQuickAddOpen(false)}
+          />
+        )}
+
+        {isFeedbackQrOpen && (
+          <FeedbackQrModal onClose={() => setIsFeedbackQrOpen(false)} />
+        )}
+
+        {isSyncModalOpen && (
+          <SyncModal
+            customDrills={customDrills}
+            students={students}
+            favorites={favorites}
+            savedTemplates={savedTemplates}
+            onImportData={(data) => {
+              if (data.customDrills) setCustomDrills(data.customDrills);
+              if (data.students) setStudents(data.students);
+              if (data.favorites) setFavorites(data.favorites);
+              if (data.savedTemplates) setSavedTemplates(data.savedTemplates);
+            }}
+            onClose={() => setIsSyncModalOpen(false)}
+          />
+        )}
+      </div>
+    </AppShell>
   );
 }

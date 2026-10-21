@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   BODY_TENSION_SESSION as session,
   BODY_TENSION_DRILLS as drills,
@@ -9,15 +8,13 @@ export default function BodyTensionSession({
   onAddSession,
   onStartTimer,
 }) {
-  const [isToday] = useState(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date()) === session.date);
   return (
     <section className="rounded-xl border border-emerald-200 bg-white overflow-hidden">
       <div className="bg-slate-900 p-4 text-white">
         <p className="text-xs font-bold text-emerald-400">
-          {isToday ? "Today’s program" : "Session program"} · 9 October 2026 ·
-          Intermediate
+          Technique session · Intermediate
         </p>
-        <h2 className="text-xl font-bold mt-2">{session.title}</h2>
+        <h1 className="text-xl font-bold mt-2">{session.title}</h1>
         <p className="text-sm mt-2 text-slate-200">{session.idea}</p>
         <p className="text-xs text-slate-400 mt-2">
           Suggested 120-minute session. Warm-up (15 min) and finish (30 min)

@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { X, Maximize, Timer } from "lucide-react";
-import { playBeep } from "../utils/audio";
+import {
+  Maximize,
+  ChevronLeft,
+  Volume2,
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+} from "lucide-react";
+import { playBeep, playTimerCue, cancelTimerAudio } from "../utils/audio";
+import { selectTimerCues, cueMode } from "../utils/timerCues";
+import TimerReadout from "./TimerReadout";
+import TimerCueSettings from "./TimerCueSettings";
 import {
   DEFAULT_CONFIG,
   MODES,
@@ -15,7 +26,7 @@ import {
   readStorage,
   writeStorage,
 } from "../utils/workoutTimer";
-import "./WorkoutTimer.css";
+import "./TimerDesign.css";
 
 const K = {
   active: "boulder_timer_active_v2",
@@ -26,7 +37,7 @@ const K = {
 const defaults = {
   sound: "Chime",
   volume: 60,
-  voice: false,
+  voice: true,
   voiceURI: "",
   haptics: true,
   countdown: true,
@@ -68,7 +79,7 @@ function NumberField({ label, value, onChange, min = 0, max = 86400 }) {
     </label>
   );
 }
-function Fields({ value: c, onChange, inMix = false }) {
+function Fields({ value: c, onChange, inMix = false, advanced = false }) {
   const set = (key, value) => onChange({ ...c, [key]: value });
   const field = (key, label, min = 0, max = 86400) => (
     <NumberField
@@ -82,10 +93,13 @@ function Fields({ value: c, onChange, inMix = false }) {
   );
   return (
     <div className="wt-fields">
-      {["countdown", "amrap", "work", "rest"].includes(c.mode) &&
+      {!advanced &&
+        ["countdown", "amrap", "work", "rest"].includes(c.mode) &&
         field("duration", "Duration (seconds)", 1)}
-      {c.mode === "fortime" && field("timeCap", "Time cap (seconds; 0 = none)")}
-      {["interval", "tabata"].includes(c.mode) && (
+      {!advanced &&
+        c.mode === "fortime" &&
+        field("timeCap", "Time cap (seconds; 0 = none)")}
+      {!advanced && ["interval", "tabata"].includes(c.mode) && (
         <>
           {field("work", "Work (seconds)", 1)}
           {field("rest", "Rest (seconds)")}
@@ -93,33 +107,38 @@ function Fields({ value: c, onChange, inMix = false }) {
       )}
       {c.mode === "emom" && (
         <>
-          {field("interval", "Interval (seconds)", 1)}
-          <label className="wt-toggle">
-            <input
-              type="checkbox"
-              checked={c.deathBy}
-              onChange={(e) => set("deathBy", e.target.checked)}
-            />
-            Death By (until you stop)
-          </label>
-          {c.deathBy && (
+          {!advanced && field("interval", "Interval (seconds)", 1)}
+          {advanced && (
             <>
-              {field("repsStart", "Starting reps", 1, 100)}
-              {field("repsStep", "Add reps each interval", 1, 100)}
+              <label className="wt-toggle">
+                <input
+                  type="checkbox"
+                  checked={c.deathBy}
+                  onChange={(e) => set("deathBy", e.target.checked)}
+                />
+                Death By (until you stop)
+              </label>
+              {c.deathBy && (
+                <>
+                  {field("repsStart", "Starting reps", 1, 100)}
+                  {field("repsStep", "Add reps each interval", 1, 100)}
+                </>
+              )}
             </>
           )}
         </>
       )}
-      {["interval", "tabata", "emom"].includes(c.mode) &&
+      {!advanced &&
+        ["interval", "tabata", "emom"].includes(c.mode) &&
         !(c.mode === "emom" && c.deathBy) &&
         field("rounds", "Rounds / intervals", 1, 100)}
-      {!["mix", "stopwatch", "work", "rest"].includes(c.mode) && (
+      {advanced && !["mix", "stopwatch", "work", "rest"].includes(c.mode) && (
         <>
           {field("sets", "Sets", 1, 100)}
           {c.sets > 1 && field("setRest", "Rest between sets (seconds)")}
         </>
       )}
-      {!inMix && field("intro", "Intro countdown (seconds)", 0, 60)}
+      {advanced && !inMix && field("intro", "Intro countdown (seconds)", 0, 60)}
     </div>
   );
 }
@@ -147,6 +166,8 @@ export default function WorkoutTimer({
   drillTitle = "Floor Timer",
   initialConfig,
   onClose,
+  embedded = false,
+  initialTab = "timer",
 }) {
   const [restored] = useState(() => {
     const s = readStorage(K.active, null);
@@ -170,7 +191,7 @@ export default function WorkoutTimer({
   }));
   const [presets, setPresets] = useState(() => readStorage(K.presets, []));
   const [log, setLog] = useState(() => readStorage(K.log, []));
-  const [tab, setTab] = useState("timer"),
+  const [tab, setTab] = useState(initialTab),
     [name, setName] = useState(""),
     [message, setMessage] = useState("");
   const [gym, setGym] = useState(false),
@@ -178,6 +199,8 @@ export default function WorkoutTimer({
   const root = useRef(null),
     text = useRef(null),
     previous = useRef(null);
+  const latestSnapshot = useRef(null),
+    lastPersisted = useRef(null);
   const compiled = useMemo(() => {
     try {
       return { phases: buildPhases(config), error: "" };
@@ -208,6 +231,13 @@ export default function WorkoutTimer({
   const total = phases.reduce((sum, p) => sum + p.duration, 0);
   const setting = (key, value) => setSettings((s) => ({ ...s, [key]: value }));
   const reset = () => {
+    if (readStorage(K.active, null)?.run?.id === run.id) {
+      try {
+        localStorage.removeItem(K.active);
+      } catch {
+        /* Storage may be unavailable. */
+      }
+    }
     setRun(newRun());
     previous.current = null;
   };
@@ -223,9 +253,42 @@ export default function WorkoutTimer({
     };
   }, [run.status, phases]);
   useEffect(() => {
-    if (!writeStorage(K.active, { config, run, title }))
-      setMessage("Storage is full. Export a backup to keep your data.");
+    latestSnapshot.current = { config, run, title };
+    if (run.status === "ready") return;
+    const prior = lastPersisted.current;
+    if (
+      !prior ||
+      prior.config !== config ||
+      prior.title !== title ||
+      prior.id !== run.id ||
+      prior.status !== run.status ||
+      prior.index !== run.index ||
+      prior.second !== Math.floor(run.phaseElapsed)
+    ) {
+      lastPersisted.current = {
+        config,
+        title,
+        id: run.id,
+        status: run.status,
+        index: run.index,
+        second: Math.floor(run.phaseElapsed),
+      };
+      if (!writeStorage(K.active, { config, run, title }))
+        setMessage("Storage is full. Export a backup to keep your data.");
+    }
   }, [config, run, title]);
+  useEffect(() => {
+    const flush = () => {
+      const snapshot = latestSnapshot.current;
+      if (snapshot && snapshot.run.status !== "ready")
+        writeStorage(K.active, snapshot);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      window.removeEventListener("pagehide", flush);
+    };
+  }, []);
   useEffect(() => {
     if (
       ![
@@ -268,77 +331,75 @@ export default function WorkoutTimer({
       window.speechSynthesis.cancel();
     };
   }, []);
-  const signal = (words, finish = false) => {
-    if (settings.sound !== "Off") {
-      const [f, wave] = sounds[settings.sound] || sounds.Chime;
-      playBeep(
-        finish ? f * 1.5 : f,
-        finish ? 0.4 : 0.12,
-        wave,
-        settings.volume / 100,
+  const signalEvents = (events) => {
+    if (!events.length) return;
+    cancelTimerAudio();
+    const [frequency, wave] = sounds[settings.sound] || sounds.Chime;
+    if (settings.sound !== "Off")
+      events.forEach((event, index) =>
+        playTimerCue(
+          event.type,
+          settings.volume / 100,
+          frequency / 880,
+          wave,
+          index * 0.32,
+        ),
       );
-    }
     if (settings.voice && window.speechSynthesis) {
       window.speechSynthesis.cancel();
-      const s = new SpeechSynthesisUtterance(words);
-      s.voice = voices.find((v) => v.voiceURI === settings.voiceURI) || null;
-      s.volume = settings.volume / 100;
-      window.speechSynthesis.speak(s);
+      const speech = new SpeechSynthesisUtterance(
+        events.map((e) => e.words).join(". "),
+      );
+      speech.voice =
+        voices.find((v) => v.voiceURI === settings.voiceURI) || null;
+      speech.volume = Math.min(1, Math.max(0, Number(settings.volume) / 100));
+      speech.lang = speech.voice?.lang || "en-US";
+      window.speechSynthesis.speak(speech);
     }
     if (settings.haptics && navigator.vibrate)
-      navigator.vibrate(finish ? [100, 50, 100] : 80);
+      navigator.vibrate(
+        events.some((e) => e.type === "complete")
+          ? [100, 50, 100, 50, 160]
+          : events.some((e) => e.type === "rest")
+            ? [70, 70, 70]
+            : 90,
+      );
   };
   useEffect(() => {
-    const remaining = Number.isFinite(duration)
-      ? Math.ceil(duration - elapsed)
-      : null;
     const now = {
-        id: run.id,
-        index: run.index,
-        remaining,
-        status: run.status,
-        deathRound,
-        elapsed: Math.floor(elapsed),
-      },
-      before = previous.current;
+      id: run.id,
+      index: run.index,
+      status: run.status,
+      deathRound,
+      elapsed: Math.floor(elapsed),
+      remaining: Number.isFinite(duration)
+        ? Math.max(0, Math.ceil(duration - elapsed))
+        : null,
+      duration,
+      kind: phase?.kind,
+      label: phase?.label,
+      round: deathRound || phase?.round,
+      countedRounds: run.countedRounds,
+    };
+    const cues = selectTimerCues(previous.current, now, settings);
     previous.current = now;
-    if (
-      !before ||
-      before.id !== now.id ||
-      !["running", "complete"].includes(now.status)
-    )
-      return;
-    if (done && before.status !== "complete") signal("Workout complete", true);
-    else if (
-      before.index !== now.index ||
-      before.deathRound !== deathRound ||
-      before.status === "ready"
-    )
-      signal(
-        `${phase?.label || "Work"}${deathRound ? `, round ${deathRound}` : phase?.round ? `, round ${phase.round}` : ""}`,
-      );
-    else if (
-      settings.countdown &&
-      remaining > 0 &&
-      remaining <= 3 &&
-      before.remaining !== remaining
-    )
-      signal(String(remaining));
-    else if (
-      settings.halfway &&
-      Number.isFinite(duration) &&
-      duration >= 10 &&
-      before.elapsed < duration / 2 &&
-      now.elapsed >= duration / 2
-    )
-      signal("Halfway");
-    else if (
-      settings.minutes &&
-      now.elapsed > 0 &&
-      Math.floor(before.elapsed / 60) < Math.floor(now.elapsed / 60)
-    )
-      signal(`${Math.floor(now.elapsed / 60)} minutes`);
+    if (document.visibilityState === "visible") signalEvents(cues);
   });
+  useEffect(() => {
+    if (run.status === "paused" || run.status === "ready") {
+      cancelTimerAudio();
+      window.speechSynthesis?.cancel();
+    }
+    return () => {
+      cancelTimerAudio();
+      window.speechSynthesis?.cancel();
+    };
+  }, [run.status]);
+  useEffect(() => {
+    const focused = embedded && locked && tab === "timer";
+    document.body.classList.toggle("bt-timer-focused", focused);
+    return () => document.body.classList.remove("bt-timer-focused");
+  }, [embedded, locked, tab]);
   useEffect(() => {
     let disposed = false,
       lock;
@@ -372,8 +433,11 @@ export default function WorkoutTimer({
     };
   }, [settings.awake, run.status]);
   const closeRef = useRef(onClose);
-  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    if (embedded) return;
     const focused = document.activeElement,
       overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -410,7 +474,7 @@ export default function WorkoutTimer({
       document.removeEventListener("keydown", key);
       focused?.focus();
     };
-  }, []);
+  }, [embedded]);
   useEffect(() => {
     if (!gym || !settings.autoScroll) return;
     const id = setInterval(() => {
@@ -450,14 +514,6 @@ export default function WorkoutTimer({
       ...(r.status === "running" ? advanceTo(r, Date.now(), phases) : r),
       status: "complete",
     }));
-  const modeChange = (mode) => {
-    setConfig((c) => ({
-      ...c,
-      mode,
-      ...(mode === "tabata" ? { work: 20, rest: 10, rounds: 8 } : {}),
-    }));
-    reset();
-  };
   const editBlock = (index, value) =>
     setConfig((c) => ({
       ...c,
@@ -605,91 +661,66 @@ export default function WorkoutTimer({
     }
   };
   const controls = (
-    <div className="wt-controls">
-      <button onClick={reset}>Reset</button>
+    <div className="wt-action-area">
       <button className="wt-primary" disabled={!!error} onClick={startPause}>
+        {run.status === "running" ? <Pause size={21} /> : <Play size={21} />}
         {run.status === "running"
-          ? "Pause"
+          ? "Pause timer"
           : run.status === "paused"
-            ? "Resume"
+            ? "Resume timer"
             : done
               ? "Start again"
-              : "Start"}
+              : "Start timer"}
       </button>
-      {locked && (
-        <>
-          <button onClick={skip}>
-            {phase?.mode === "fortime"
-              ? "Finish set"
-              : phase?.kind === "rest"
-                ? "Skip rest"
-                : "Next phase"}
+      {(locked || done) && (
+        <div className="wt-secondary-actions">
+          {locked && (
+            <>
+              <button onClick={skip}>
+                <SkipForward size={18} />
+                {phase?.mode === "fortime"
+                  ? "Finish set"
+                  : phase?.kind === "rest"
+                    ? "Skip rest"
+                    : "Next interval"}
+              </button>
+              <button onClick={finish}>Finish workout</button>
+            </>
+          )}
+          <button onClick={reset} aria-label="Reset timer">
+            <RotateCcw size={17} />
+            Reset
           </button>
-          <button onClick={finish}>Finish workout</button>
-        </>
+        </div>
       )}
     </div>
   );
+  const cueLabels = {
+    both: "Voice + sounds",
+    sounds: "Sounds on",
+    voice: "Voice on",
+    off: "Silent",
+  };
   const display = (
-    <div className={`wt-display ${phase?.kind === "rest" ? "wt-rest" : ""}`}>
-      <p className="wt-phase">
-        {done ? "Workout complete" : phase?.label || "Ready"}{" "}
-        {run.status === "paused"
-          ? "· Paused"
-          : run.status === "running"
-            ? "· Live"
-            : ""}
-      </p>
-      <div className="wt-clock" role="timer">
-        {formatTime(seconds, up || done)}
-      </div>
-      {!done && (
-        <p>
-          {deathRound
-            ? `Round ${deathRound} · ${phase.repsStart + (deathRound - 1) * phase.repsStep} reps`
-            : phase?.round
-              ? `Round ${phase.round}/${phase.rounds}`
-              : ""}
-          {phase?.sets > 1 ? ` · Set ${phase.set}/${phase.sets}` : ""}
-        </p>
-      )}
-      <p className="wt-meta">
-        {done
-          ? "Actual elapsed time"
-          : `Elapsed ${formatTime(run.elapsed, true)} · ${config.mode === "mix" ? `Block ${phase?.block || 1}/${config.blocks.length} · ` : ""}Planned ${Number.isFinite(total) ? formatTime(total) : "Open-ended"}`}
-      </p>
-      {!done && Number.isFinite(duration) && (
-        <progress
-          max={duration}
-          value={elapsed}
-          aria-label="Current phase progress"
-        />
-      )}
-      {!done && phases[run.index + 1] && (
-        <p className="wt-meta">
-          Next: {phases[run.index + 1].label} ·{" "}
-          {formatTime(phases[run.index + 1].duration)}
-        </p>
-      )}
-      {locked && phase?.kind === "work" && (
-        <button
-          onClick={() =>
-            setRun((r) =>
-              roundSplit(
-                r.status === "running" ? advanceTo(r, Date.now(), phases) : r,
-              ),
-            )
-          }
-        >
-          + Round / lap · {run.countedRounds}
-        </button>
-      )}
-      {!!run.splits.length && (
-        <p className="wt-meta">
-          Last split {formatTime(run.splits.at(-1).split, true)}
-        </p>
-      )}
-    </div>
+    <TimerReadout
+      run={run}
+      phase={phase}
+      phases={phases}
+      config={config}
+      seconds={seconds}
+      elapsed={elapsed}
+      duration={duration}
+      deathRound={deathRound}
+      onRound={() =>
+        setRun((r) =>
+          roundSplit(
+            r.status === "running" ? advanceTo(r, Date.now(), phases) : r,
+          ),
+        )
+      }
+      onOpenCues={() => setTab("settings")}
+      cueLabel={cueLabels[cueMode(settings)]}
+    />
   );
   const textField = (key, label, area = false) => (
     <label className="wt-field">
@@ -709,36 +740,45 @@ export default function WorkoutTimer({
     </label>
   );
   return (
-    <div className="wt-overlay">
+    <div className={embedded ? "wt-inline" : "wt-overlay"}>
       <section
         ref={root}
-        className={`wt-modal ${gym ? "wt-gym" : ""} ${settings.contrast ? "wt-contrast" : ""}`}
-        role="dialog"
-        aria-modal="true"
+        className={`wt-modal ${locked ? "wt-running" : done ? "wt-done" : "wt-ready"} ${gym ? "wt-gym" : ""} ${settings.contrast ? "wt-contrast" : ""}`}
+        role={embedded ? "region" : "dialog"}
+        aria-modal={embedded ? undefined : true}
+        data-view={tab}
         aria-label="Workout timer"
         tabIndex={-1}
       >
         <header className="wt-header">
-          <h2>
-            <Timer size={20} />
-            {title}
-          </h2>
-          <div>
+          <button
+            className="wt-back"
+            aria-label={embedded ? "Back to timers" : "Close timer"}
+            onClick={() => {
+              if (document.fullscreenElement)
+                document.exitFullscreen().catch(() => {});
+              onClose();
+            }}
+          >
+            <ChevronLeft size={20} />
+            <span>{embedded ? "Timers" : "Back"}</span>
+          </button>
+          <div className="wt-title">
+            <strong>{MODE_LABELS[config.mode]}</strong>
+            <small>{title}</small>
+          </div>
+          <div className="wt-header-tools">
+            <button
+              onClick={() => setTab(tab === "settings" ? "timer" : "settings")}
+              aria-label="Sound and voice cues"
+            >
+              <Volume2 size={20} />
+            </button>
             <button
               onClick={fullscreen}
               aria-label={gym ? "Exit gym display" : "Gym display"}
             >
-              <Maximize size={20} />
-            </button>
-            <button
-              aria-label="Close timer"
-              onClick={() => {
-                if (document.fullscreenElement)
-                  document.exitFullscreen().catch(() => {});
-                onClose();
-              }}
-            >
-              <X size={20} />
+              <Maximize size={18} />
             </button>
           </div>
         </header>
@@ -787,8 +827,12 @@ export default function WorkoutTimer({
                   className={tab === t ? "wt-selected" : ""}
                 >
                   {t === "log"
-                    ? "Workout log"
-                    : t[0].toUpperCase() + t.slice(1)}
+                    ? "History"
+                    : t === "settings"
+                      ? "Cues & display"
+                      : t === "timer"
+                        ? "Setup"
+                        : "Saved"}
                 </button>
               ))}
             </nav>
@@ -805,191 +849,215 @@ export default function WorkoutTimer({
             )}
             {tab === "timer" && (
               <>
-                <div className="wt-modes">
-                  {MODES.map((m) => (
-                    <button
-                      key={m}
-                      disabled={locked}
-                      aria-pressed={config.mode === m}
-                      className={config.mode === m ? "wt-selected" : ""}
-                      onClick={() => modeChange(m)}
-                    >
-                      {MODE_LABELS[m]}
-                    </button>
-                  ))}
-                </div>
-                {display}
-                {controls}
+                {locked || done ? (
+                  <>
+                    {display}
+                    {controls}
+                  </>
+                ) : (
+                  <div className="wt-section-heading">
+                    <p className="wt-eyebrow">Set your rhythm</p>
+                    <h2>{title}</h2>
+                    <p>
+                      {Number.isFinite(total)
+                        ? formatTime(total) + " total, including preparation"
+                        : "Open-ended · finish when you are ready"}
+                    </p>
+                  </div>
+                )}
                 {error && (
                   <p role="alert" className="wt-message">
                     {error}
                   </p>
                 )}
-                <fieldset disabled={locked} className="wt-setup">
-                  <legend>
-                    Workout setup {locked ? "· Reset to edit" : ""}
-                  </legend>
-                  <label className="wt-field">
-                    <span>Workout name</span>
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </label>
-                  <Fields value={config} onChange={setConfig} />
-                  <label className="wt-field">
-                    <span>Clock display</span>
-                    <select
-                      value={config.display}
-                      onChange={(e) =>
-                        setConfig((c) => ({ ...c, display: e.target.value }))
-                      }
-                    >
-                      <option value="down">Count down</option>
-                      <option value="up">Count up</option>
-                    </select>
-                  </label>
-                  {config.mode === "countdown" && (
-                    <div className="wt-controls">
-                      {[2, 3, 5, 10, 30, 60].map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => {
-                            setConfig((c) => ({ ...c, duration: s }));
-                            reset();
-                          }}
+                {!locked && !done && (
+                  <fieldset className="wt-setup">
+                    <legend>
+                      Workout setup {locked ? "· Reset to edit" : ""}
+                    </legend>
+                    <Fields value={config} onChange={setConfig} />
+                    <details className="wt-advanced">
+                      <summary>Advanced options</summary>{" "}
+                      <label className="wt-field">
+                        <span>Workout name</span>
+                        <input
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                        />
+                      </label>
+                      <Fields value={config} onChange={setConfig} advanced />
+                      <label className="wt-field">
+                        <span>Clock display</span>
+                        <select
+                          value={config.display}
+                          onChange={(e) =>
+                            setConfig((c) => ({
+                              ...c,
+                              display: e.target.value,
+                            }))
+                          }
                         >
-                          {s}s
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {config.mode === "mix" && (
-                    <>
-                      <NumberField
-                        label="Repeat whole flow"
-                        value={config.mixRepeats}
-                        min={1}
-                        max={100}
-                        onChange={(v) =>
-                          setConfig((c) => ({ ...c, mixRepeats: v }))
-                        }
-                      />
-                      {config.blocks.map((b, i) => (
-                        <details className="wt-block" key={b.id || i} open>
-                          <summary>
-                            {i + 1}. {b.label || "Repeat section"}
-                          </summary>
-                          {b.mode === "repeat" ? (
-                            <div className="wt-fields">
-                              {[
-                                ["from", "From block"],
-                                ["to", "Through block"],
-                                ["repeat", "Total repetitions"],
-                              ].map(([k, label]) => (
-                                <NumberField
-                                  key={k}
-                                  label={label}
-                                  value={b[k]}
-                                  min={1}
-                                  max={k === "repeat" ? 100 : i}
-                                  onChange={(v) =>
-                                    editBlock(i, { ...b, [k]: v })
-                                  }
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <>
-                              <label className="wt-field">
-                                <span>Block label</span>
-                                <input
-                                  value={b.label}
-                                  onChange={(e) =>
-                                    editBlock(i, {
-                                      ...b,
-                                      label: e.target.value,
-                                    })
-                                  }
-                                />
-                              </label>
-                              <Fields
-                                value={b}
-                                onChange={(v) => editBlock(i, v)}
-                                inMix
-                              />
-                            </>
-                          )}
-                          <div className="wt-controls">
-                            <button
-                              disabled={!i}
-                              onClick={() => move(i, -1)}
-                              aria-label={`Move block ${i + 1} up`}
-                            >
-                              ↑ Up
-                            </button>
-                            <button
-                              disabled={i === config.blocks.length - 1}
-                              onClick={() => move(i, 1)}
-                              aria-label={`Move block ${i + 1} down`}
-                            >
-                              ↓ Down
-                            </button>
-                            <button
-                              onClick={() =>
-                                setConfig((c) => ({
-                                  ...c,
-                                  blocks: c.blocks.flatMap((x, index) =>
-                                    index === i
-                                      ? [x, { ...x, id: crypto.randomUUID() }]
-                                      : [x],
-                                  ),
-                                }))
-                              }
-                            >
-                              Duplicate
-                            </button>
-                            <button
-                              onClick={() =>
-                                setConfig((c) => ({
-                                  ...c,
-                                  blocks: c.blocks.filter(
-                                    (_, index) => index !== i,
-                                  ),
-                                }))
-                              }
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </details>
-                      ))}
+                          <option value="down">Count down</option>
+                          <option value="up">Count up</option>
+                        </select>
+                      </label>
+                    </details>
+                    {config.mode === "countdown" && (
                       <div className="wt-controls">
-                        {[
-                          "amrap",
-                          "fortime",
-                          "emom",
-                          "tabata",
-                          "work",
-                          "rest",
-                          "repeat",
-                        ].map((m) => (
+                        {[2, 3, 5, 10, 30, 60].map((s) => (
                           <button
-                            key={m}
-                            disabled={m === "repeat" && !config.blocks.length}
-                            onClick={() => addBlock(m)}
+                            key={s}
+                            onClick={() => {
+                              setConfig((c) => ({ ...c, duration: s }));
+                              reset();
+                            }}
                           >
-                            + {MODE_LABELS[m] || m}
+                            {s}s
                           </button>
                         ))}
                       </div>
-                      <p className="wt-meta">
-                        Repeat markers replay a section of preceding blocks.
-                        Uncapped For Time waits for “Finish set”.
-                      </p>
-                    </>
-                  )}
-                </fieldset>
+                    )}
+                    {config.mode === "mix" && (
+                      <>
+                        <NumberField
+                          label="Repeat whole flow"
+                          value={config.mixRepeats}
+                          min={1}
+                          max={100}
+                          onChange={(v) =>
+                            setConfig((c) => ({ ...c, mixRepeats: v }))
+                          }
+                        />
+                        {config.blocks.map((b, i) => (
+                          <details
+                            className="wt-block"
+                            key={b.id || i}
+                            open={config.blocks.length <= 2}
+                          >
+                            <summary>
+                              {i + 1}. {b.label || "Repeat section"}
+                            </summary>
+                            {b.mode === "repeat" ? (
+                              <div className="wt-fields">
+                                {[
+                                  ["from", "From block"],
+                                  ["to", "Through block"],
+                                  ["repeat", "Total repetitions"],
+                                ].map(([k, label]) => (
+                                  <NumberField
+                                    key={k}
+                                    label={label}
+                                    value={b[k]}
+                                    min={1}
+                                    max={k === "repeat" ? 100 : i}
+                                    onChange={(v) =>
+                                      editBlock(i, { ...b, [k]: v })
+                                    }
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <>
+                                <label className="wt-field">
+                                  <span>Block label</span>
+                                  <input
+                                    value={b.label}
+                                    onChange={(e) =>
+                                      editBlock(i, {
+                                        ...b,
+                                        label: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <Fields
+                                  value={b}
+                                  onChange={(v) => editBlock(i, v)}
+                                  inMix
+                                />
+                                <details className="wt-advanced">
+                                  <summary>Block options</summary>
+                                  <Fields
+                                    value={b}
+                                    onChange={(v) => editBlock(i, v)}
+                                    inMix
+                                    advanced
+                                  />
+                                </details>
+                              </>
+                            )}
+                            <div className="wt-controls">
+                              <button
+                                disabled={!i}
+                                onClick={() => move(i, -1)}
+                                aria-label={`Move block ${i + 1} up`}
+                              >
+                                ↑ Up
+                              </button>
+                              <button
+                                disabled={i === config.blocks.length - 1}
+                                onClick={() => move(i, 1)}
+                                aria-label={`Move block ${i + 1} down`}
+                              >
+                                ↓ Down
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConfig((c) => ({
+                                    ...c,
+                                    blocks: c.blocks.flatMap((x, index) =>
+                                      index === i
+                                        ? [x, { ...x, id: crypto.randomUUID() }]
+                                        : [x],
+                                    ),
+                                  }))
+                                }
+                              >
+                                Duplicate
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConfig((c) => ({
+                                    ...c,
+                                    blocks: c.blocks.filter(
+                                      (_, index) => index !== i,
+                                    ),
+                                  }))
+                                }
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </details>
+                        ))}
+                        <div className="wt-controls">
+                          {[
+                            "amrap",
+                            "fortime",
+                            "emom",
+                            "tabata",
+                            "work",
+                            "rest",
+                            "repeat",
+                          ].map((m) => (
+                            <button
+                              key={m}
+                              disabled={m === "repeat" && !config.blocks.length}
+                              onClick={() => addBlock(m)}
+                            >
+                              + {MODE_LABELS[m] || m}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="wt-meta">
+                          Repeat markers replay a section of preceding blocks.
+                          Uncapped For Time waits for “Finish set”.
+                        </p>
+                      </>
+                    )}
+                  </fieldset>
+                )}
+                {!locked && !done && controls}
                 <details className="wt-block">
                   <summary>Show workout flow</summary>
                   <ol>
@@ -1111,7 +1179,8 @@ export default function WorkoutTimer({
                       {new Date(item.date).toLocaleDateString()}
                     </summary>
                     <p>
-                      {MODE_LABELS[item.mode]} · {item.rounds} rounds / laps
+                      {MODE_LABELS[item.mode]} · {item.rounds} manually logged
+                      rounds / laps
                     </p>
                     <label className="wt-field">
                       <span>Notes</span>
@@ -1190,125 +1259,76 @@ export default function WorkoutTimer({
             )}
             {tab === "settings" && (
               <div className="wt-section">
-                <label className="wt-field">
-                  <span>Sound pack</span>
-                  <select
-                    value={settings.sound}
-                    onChange={(e) => setting("sound", e.target.value)}
-                  >
-                    {["Off", ...Object.keys(sounds)].map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </label>
-                <NumberField
-                  label="Volume (%)"
-                  value={settings.volume}
-                  max={100}
-                  onChange={(v) =>
-                    setting("volume", Math.min(100, Math.max(0, v)))
-                  }
+                <TimerCueSettings
+                  settings={settings}
+                  onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+                  voices={voices}
+                  soundPacks={Object.keys(sounds)}
+                  onPreview={(type, words) => signalEvents([{ type, words }])}
                 />
-                {[
-                  ["voice", "Voice announcements"],
-                  ["haptics", "Vibration"],
-                  ["countdown", "Last 3 seconds"],
-                  ["halfway", "Halfway announcement"],
-                  ["minutes", "Minute announcements"],
-                  ["awake", "Keep screen awake"],
-                  ["contrast", "Maximum visibility colors"],
-                ].map(([k, label]) => (
-                  <label key={k} className="wt-toggle">
+                <details className="wt-block wt-display-settings">
+                  <summary>Gym display & branding</summary>
+                  <h3>Gym display</h3>
+                  {textField("box", "Gym / box name")}
+                  {textField("coach", "Coach name")}
+                  <label className="wt-file">
+                    Upload gym logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        imageFile(
+                          e.target.files[0],
+                          (image) => setting("logo", image),
+                          setMessage,
+                        )
+                      }
+                    />
+                  </label>
+                  {settings.logo && (
+                    <>
+                      <img
+                        className="wt-logo-preview"
+                        src={settings.logo}
+                        alt="Gym logo preview"
+                      />
+                      <button onClick={() => setting("logo", "")}>
+                        Remove logo
+                      </button>
+                    </>
+                  )}
+                  <label className="wt-toggle">
                     <input
                       type="checkbox"
-                      checked={settings[k]}
-                      onChange={(e) => setting(k, e.target.checked)}
+                      checked={settings.tintLogo}
+                      onChange={(e) => setting("tintLogo", e.target.checked)}
                     />
-                    {label}
+                    Tint dark logo white
                   </label>
-                ))}
-                <label className="wt-field">
-                  <span>Voice (available on this device)</span>
-                  <select
-                    value={settings.voiceURI}
-                    onChange={(e) => setting("voiceURI", e.target.value)}
-                  >
-                    <option value="">Device default</option>
-                    {voices.map((v) => (
-                      <option key={v.voiceURI} value={v.voiceURI}>
-                        {v.name} · {v.lang}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button onClick={() => signal("Three, two, one. Start!")}>
-                  Preview sound and voice
-                </button>
-                <h3>Gym display</h3>
-                {textField("box", "Gym / box name")}
-                {textField("coach", "Coach name")}
-                <label className="wt-file">
-                  Upload gym logo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      imageFile(
-                        e.target.files[0],
-                        (image) => setting("logo", image),
-                        setMessage,
-                      )
+                  {textField("notes", "Workout text", true)}
+                  <NumberField
+                    label="Workout text size (px)"
+                    value={settings.textSize}
+                    min={12}
+                    max={64}
+                    onChange={(v) =>
+                      setting("textSize", Math.min(64, Math.max(12, v)))
                     }
                   />
-                </label>
-                {settings.logo && (
-                  <>
-                    <img
-                      className="wt-logo-preview"
-                      src={settings.logo}
-                      alt="Gym logo preview"
+                  <label className="wt-toggle">
+                    <input
+                      type="checkbox"
+                      checked={settings.autoScroll}
+                      onChange={(e) => setting("autoScroll", e.target.checked)}
                     />
-                    <button onClick={() => setting("logo", "")}>
-                      Remove logo
-                    </button>
-                  </>
-                )}
-                <label className="wt-toggle">
-                  <input
-                    type="checkbox"
-                    checked={settings.tintLogo}
-                    onChange={(e) => setting("tintLogo", e.target.checked)}
-                  />
-                  Tint dark logo white
-                </label>
-                {textField("notes", "Workout text", true)}
-                <NumberField
-                  label="Workout text size (px)"
-                  value={settings.textSize}
-                  min={12}
-                  max={64}
-                  onChange={(v) =>
-                    setting("textSize", Math.min(64, Math.max(12, v)))
-                  }
-                />
-                <label className="wt-toggle">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoScroll}
-                    onChange={(e) => setting("autoScroll", e.target.checked)}
-                  />
-                  Slow auto-scroll
-                </label>
-                <p className="wt-meta">
-                  Runs offline after caching. Sound, voices, vibration, full
-                  screen and screen wake lock depend on your browser. A locked
-                  screen may silence cues; elapsed time catches up when you
-                  return. Apple Watch / Apple Health and direct Chromecast
-                  remote control require native integrations and are not
-                  available in this web app. Mirror your screen or cast your
-                  browser tab for TV use. These are original synthesized sounds
-                  and your device’s voices.
-                </p>
+                    Slow auto-scroll
+                  </label>
+                  <p className="wt-meta">
+                    Mirror your screen or cast this browser tab to show the
+                    timer on a TV. Timers recover elapsed time after
+                    backgrounding. A locked screen may silence cues.
+                  </p>
+                </details>
               </div>
             )}
           </>

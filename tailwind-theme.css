@@ -1,0 +1,6 @@
+@theme inline {
+  --color-boulder: var(--bt-primary);
+  --color-work: var(--bt-work);
+  --color-recovery: var(--bt-rest);
+  --font-display: var(--bt-heading);
+}
