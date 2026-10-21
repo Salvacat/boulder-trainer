@@ -17,14 +17,17 @@ export default function SessionLibrary({
   onBuild,
   planCount,
   onOpenPlan,
+  onTeaching,
 }) {
   const [filter, setFilter] = useState("all");
   const sessions = TRAINING_SESSIONS.filter((s) =>
-    filter === "technique"
-      ? s.category === "Technique"
-      : filter === "saved"
-        ? bookmarks.includes(s.id)
-        : true,
+    filter === "teaching"
+      ? Boolean(s.coaching)
+      : filter === "technique"
+        ? s.category === "Technique"
+        : filter === "saved"
+          ? bookmarks.includes(s.id)
+          : true,
   );
   return (
     <div className="bt-page">
@@ -42,10 +45,18 @@ export default function SessionLibrary({
           <ArrowRight size={19} />
         </button>
       )}
+      <button className="bt-continue" onClick={onTeaching}>
+        <span>
+          <strong>Teach from the gym courses</strong>Six levels · lesson plans ·
+          demonstration videos
+        </span>
+        <ChevronRight size={20} />
+      </button>
       <div className="bt-filter-row" aria-label="Session filters">
         {[
           ["all", "All sessions"],
           ["technique", "Technique"],
+          ["teaching", "Coach lessons"],
           ["saved", "Saved"],
         ].map(([id, label]) => (
           <button

@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 
 import { INITIAL_DATABASE, DEFAULT_TAGS } from "./data/initialData";
+import CoachingPathway from "./components/CoachingPathway";
+import DrillResources from "./components/DrillResources";
 import DemonstrationVisual from "./components/DemonstrationVisual";
 import RouteDrawer from "./components/RouteDrawer";
 import DrillTimerModal from "./components/DrillTimerModal";
@@ -66,7 +68,7 @@ export default function TrainerApp() {
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState("sessions");
   const [libraryView, setLibraryView] = useState("drills");
-  const [coachView, setCoachView] = useState("tools");
+  const [coachView, setCoachView] = useState("pathway");
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionBookmarks, setSessionBookmarks] = useState(() =>
     readStorage("boulder_session_bookmarks", []),
@@ -550,6 +552,7 @@ export default function TrainerApp() {
                 <Sparkles size={14} className="text-amber-500" /> Movement
                 Demonstration
               </h4>
+              <DrillResources drill={d} />
               <DemonstrationVisual
                 visualType={d.visualType}
                 customMediaUrl={customMedia}
@@ -606,14 +609,44 @@ export default function TrainerApp() {
     );
   };
 
+  const renderPathway = () => (
+    <CoachingPathway
+      onOpenLesson={(id) => {
+        setSelectedSessionId(id);
+        setActiveTab("sessions");
+      }}
+      onAddLesson={(ids) => {
+        setSessionItems((current) =>
+          appendSessionItems(
+            current,
+            ids.map((id) => allDrills.find((d) => d.id === id)).filter(Boolean),
+          ),
+        );
+        setIsSessionDrawerOpen(true);
+      }}
+      onShowCourse={(id) => {
+        setExpandedCourse(id);
+        setLibraryView("courses");
+        setActiveTab("library");
+      }}
+    />
+  );
+
   // --- RENDER COURSES TAB ---
   const renderCourses = () => (
     <div className="p-4 space-y-4 pb-28 max-w-md mx-auto">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800">Course Curriculums</h2>
+        <h2 className="text-xl font-bold text-slate-800">
+          Gym course foundation
+        </h2>
         <span className="text-xs text-slate-500">Bouldering Progression</span>
       </div>
 
+      <p className="text-xs text-slate-500">
+        Original gym-provided course outline retained from your source material.
+        Local grade numbers belong to that outline; teaching levels are separate
+        trainer adaptations.
+      </p>
       {INITIAL_DATABASE.courses.map((course) => (
         <Card key={course.id} className="overflow-visible">
           <button
@@ -1026,6 +1059,10 @@ export default function TrainerApp() {
       onNavigate={navigate}
       planCount={sessionItems.length}
       onOpenPlan={() => setIsSessionDrawerOpen(true)}
+      onTeaching={() => {
+        setActiveTab("coach");
+        setCoachView("pathway");
+      }}
     >
       {activeTab === "sessions" &&
         (selectedSession ? (
@@ -1082,7 +1119,8 @@ export default function TrainerApp() {
             {[
               ["drills", "Drills"],
               ["concepts", "Concepts"],
-              ["courses", "Courses"],
+              ["pathway", "Teaching levels"],
+              ["courses", "Gym courses"],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -1097,11 +1135,12 @@ export default function TrainerApp() {
               </button>
             ))}
           </div>
-          {libraryView !== "courses" && renderTopBar()}
+          {!["courses", "pathway"].includes(libraryView) && renderTopBar()}
           <div className="bt-legacy">
             {libraryView === "drills" && renderDrills()}
             {libraryView === "concepts" && renderConcepts()}
             {libraryView === "courses" && renderCourses()}
+            {libraryView === "pathway" && renderPathway()}
           </div>
         </div>
       )}
@@ -1132,6 +1171,7 @@ export default function TrainerApp() {
           </div>
           <div className="bt-filter-row">
             {[
+              ["pathway", "Teaching levels"],
               ["tools", "Toolkit"],
               ["students", "Students"],
             ].map(([id, label]) => (
@@ -1146,7 +1186,9 @@ export default function TrainerApp() {
             ))}
           </div>
           <div className="bt-legacy">
-            {coachView === "students" ? (
+            {coachView === "pathway" ? (
+              renderPathway()
+            ) : coachView === "students" ? (
               <StudentManager
                 students={students}
                 onUpdateStudents={setStudents}

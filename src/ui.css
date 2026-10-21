@@ -1040,3 +1040,177 @@ button:disabled {
 .bt-legacy button {
   min-height: 44px;
 }
+.bt-resource {
+  border: 1px solid var(--bt-border);
+  border-radius: 12px;
+  background: var(--bt-inset);
+  padding: 14px;
+  margin: 10px 0;
+}
+.bt-resource a,
+.bt-coaching a,
+.bt-source-link {
+  color: var(--bt-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bt-resource a {
+  display: block;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+.bt-resource p {
+  font-size: 13px;
+  margin: 8px 0;
+}
+.bt-resource small {
+  display: block;
+  color: var(--bt-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.bt-source-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid var(--bt-border);
+  border-radius: 6px;
+  color: var(--bt-muted);
+  font-size: 11px;
+}
+.bt-coaching {
+  margin-top: 24px;
+}
+.bt-coaching-intro {
+  max-width: 780px;
+  margin-bottom: 24px;
+}
+.bt-coaching h2 {
+  font: 600 26px/1.2 var(--bt-heading);
+  margin-bottom: 12px;
+}
+.bt-coaching p {
+  line-height: 1.7;
+}
+.bt-coaching-intro > p:last-child {
+  color: var(--bt-muted);
+}
+.bt-level-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.bt-level-tabs button {
+  min-height: 84px;
+  text-align: left;
+  border: 1px solid var(--bt-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bt-surface);
+  color: var(--bt-text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.bt-level-tabs button span {
+  display: block;
+  color: var(--bt-muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.bt-level-tabs button.is-active {
+  border-color: var(--bt-primary);
+  background: #d2f66c12;
+}
+.bt-level-tabs button.is-active span {
+  color: var(--bt-primary);
+}
+.bt-level-detail {
+  border: 1px solid var(--bt-border);
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--bt-surface);
+}
+.bt-level-detail dl,
+.bt-lesson-guide dl {
+  display: grid;
+  gap: 15px;
+  margin: 20px 0;
+}
+.bt-level-detail dt,
+.bt-lesson-guide dt {
+  color: var(--bt-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.bt-level-detail dd,
+.bt-lesson-guide dd {
+  color: var(--bt-text);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+.bt-lesson {
+  margin-top: 20px;
+  border-top: 1px solid var(--bt-border);
+  padding-top: 18px;
+}
+.bt-lesson summary {
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+  min-height: 44px;
+}
+.bt-lesson summary span {
+  display: block;
+  color: var(--bt-muted);
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+.bt-lesson-guide {
+  padding: 18px 0;
+}
+.bt-session-detail .bt-lesson-guide {
+  padding: 22px;
+  border: 1px solid var(--bt-border);
+  border-radius: 16px;
+  margin: 20px 0;
+}
+.bt-research-sources {
+  border: 1px solid var(--bt-border);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 24px 0;
+}
+.bt-research-sources summary {
+  cursor: pointer;
+  font-weight: 650;
+  min-height: 44px;
+}
+.bt-research-sources p {
+  color: var(--bt-muted);
+  font-size: 13px;
+  margin: 10px 0 18px;
+}
+.bt-research-sources li {
+  margin: 14px 0;
+}
+.bt-research-sources h3 {
+  font-size: 18px;
+  margin-top: 24px;
+}
+@media (max-width: 600px) {
+  .bt-level-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bt-level-detail {
+    padding: 18px;
+  }
+  .bt-coaching h2 {
+    font-size: 23px;
+  }
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "boulder-trainer-v3";
+const CACHE_NAME = "boulder-trainer-v4";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

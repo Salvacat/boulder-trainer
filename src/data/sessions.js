@@ -1,6 +1,8 @@
 import { BODY_TENSION_SESSION, BODY_TENSION_DRILLS } from "./bodyTension.js";
 import { DEFAULT_CONFIG } from "../utils/workoutTimer.js";
 
+import { COACHING_SESSIONS } from "./coachingPathway.js";
+
 export const TRAINING_SESSIONS = [
   {
     id: "body-tension",
@@ -47,6 +49,7 @@ export const TRAINING_SESSIONS = [
       { title: "No matching", minutes: 15 },
     ],
   },
+  ...COACHING_SESSIONS,
 ];
 
 export function sessionTimerConfig(session) {

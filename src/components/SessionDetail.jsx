@@ -1,4 +1,5 @@
 import { ArrowLeft, Clock3, Layers } from "lucide-react";
+import { LessonGuide } from "./CoachingPathway";
 import BodyTensionSession from "./BodyTensionSession";
 export default function SessionDetail({
   session,
@@ -51,6 +52,7 @@ export default function SessionDetail({
                 Block timings are suggestions. Adjust them before you start.
               </p>
             </div>
+            {session.coaching && <LessonGuide lesson={session.coaching} />}
             <div className="bt-detail-drills">{drills.map(renderDrill)}</div>
           </>
         )}

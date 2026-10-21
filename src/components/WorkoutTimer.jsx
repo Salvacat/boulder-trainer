@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { playBeep, playTimerCue, cancelTimerAudio } from "../utils/audio";
 import { selectTimerCues, cueMode } from "../utils/timerCues";
+import NumberField from "./NumberPicker";
 import TimerReadout from "./TimerReadout";
 import TimerCueSettings from "./TimerCueSettings";
 import {
@@ -62,23 +63,6 @@ const sounds = {
   Soft: [440, "sine"],
   Arcade: [1200, "sawtooth"],
 };
-function NumberField({ label, value, onChange, min = 0, max = 86400 }) {
-  return (
-    <label className="wt-field">
-      <span>{label}</span>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value === "" ? "" : Number(e.target.value))
-        }
-      />
-    </label>
-  );
-}
 function Fields({ value: c, onChange, inMix = false, advanced = false }) {
   const set = (key, value) => onChange({ ...c, [key]: value });
   const field = (key, label, min = 0, max = 86400) => (
