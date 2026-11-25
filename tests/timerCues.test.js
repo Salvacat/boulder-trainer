@@ -60,6 +60,57 @@ test("round completion and recovery are separate cues; next work has its own cue
     [{ type: "complete", words: "Workout complete" }],
   );
 });
+test("round numbers are spoken at the work start, not again during recovery", () => {
+  const start = selectTimerCues(
+    snapshot({ status: "ready", round: 1 }),
+    snapshot({ round: 1 }),
+  );
+  assert.deepEqual(start, [{ type: "work", words: "Work. Round 1" }]);
+  const rest = selectTimerCues(
+    snapshot({ round: 1 }),
+    snapshot({ index: 1, kind: "rest", round: 1, label: "Recovery" }),
+  );
+  assert.deepEqual(rest, [
+    { type: "repEnd", words: "" },
+    { type: "rest", words: "Rest" },
+  ]);
+  const work = selectTimerCues(
+    snapshot({ index: 1, kind: "rest", round: 1 }),
+    snapshot({ index: 2, round: 2 }),
+  );
+  assert.deepEqual(work, [{ type: "work", words: "Work. Round 2" }]);
+  assert.deepEqual(
+    selectTimerCues(snapshot({ round: 2 }), snapshot({ round: 2 })),
+    [],
+  );
+});
+test("optional end announcements identify the completed round, followed by rest", () => {
+  const before = snapshot({ round: 3 });
+  const now = snapshot({ index: 1, kind: "rest", round: 3, label: "Recovery" });
+  assert.deepEqual(selectTimerCues(before, now, { announceRoundEnd: true }), [
+    { type: "repEnd", words: "Round 3 complete" },
+    { type: "rest", words: "Rest" },
+  ]);
+  assert.deepEqual(
+    selectTimerCues(before, snapshot({ status: "complete" }), {
+      announceRoundEnd: true,
+    }),
+    [{ type: "complete", words: "Workout complete" }],
+  );
+});
+test("resuming a round or its recovery does not repeat the round-start announcement", () => {
+  for (const kind of ["work", "rest"]) {
+    const cues = selectTimerCues(
+      snapshot({ status: "paused", kind, round: 4 }),
+      snapshot({ kind, round: 4 }),
+    );
+    assert.equal(cues.length, 1);
+    assert.equal(
+      cues[0].words,
+      kind === "work" ? "Resume. Work" : "Resume. Rest",
+    );
+  }
+});
 test("work, rest, rep end and finish use four distinct pitch/rhythm patterns", () => {
   assert.equal(
     new Set(

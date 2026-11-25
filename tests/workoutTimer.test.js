@@ -19,11 +19,59 @@ const running = () => ({ ...newRun(1000), status: "running" });
 const length = (config) =>
   buildPhases({ intro: 0, ...config }).reduce((sum, p) => sum + p.duration, 0);
 
-test("classic Tabata has eight 20/10 cycles, including final recovery", () => {
+test("Tabata finishes on its eighth work interval with no trailing recovery", () => {
   const phases = buildPhases({ mode: "tabata", intro: 0 });
-  assert.equal(length({ mode: "tabata" }), 240);
-  assert.equal(phases.length, 16);
-  assert.equal(phases.at(-1).kind, "rest");
+  assert.equal(length({ mode: "tabata" }), 230);
+  assert.equal(phases.length, 15);
+  assert.equal(phases.at(-1).kind, "work");
+  const lastWork = advanceRun(running(), 210, phases);
+  assert.equal(phases[lastWork.index].round, 8);
+  assert.equal(lastWork.status, "running");
+  const done = advanceRun(lastWork, 20, phases);
+  assert.equal(done.status, "complete");
+  assert.equal(done.elapsed, 230);
+  assert.equal(completedIntervals(done, phases), 8);
+});
+
+test("single-round Tabata ends on work; multiple sets retain only their configured set rest", () => {
+  const single = buildPhases({ mode: "tabata", intro: 0, rounds: 1 });
+  assert.deepEqual(
+    single.map((p) => p.kind),
+    ["work"],
+  );
+  assert.equal(advanceRun(running(), 20, single).status, "complete");
+  const multi = buildPhases({
+    mode: "tabata",
+    intro: 0,
+    rounds: 2,
+    sets: 2,
+    setRest: 30,
+  });
+  assert.deepEqual(
+    multi.map((p) => p.kind),
+    ["work", "rest", "work", "rest", "work", "rest", "work"],
+  );
+  assert.equal(multi[3].label, "Rest between sets");
+  assert.equal(multi[3].duration, 30);
+  assert.equal(advanceRun(running(), 130, multi).status, "complete");
+});
+
+test("Tabata inside MIX ends on work while explicitly programmed rest blocks remain", () => {
+  const mix = buildPhases({
+    mode: "mix",
+    intro: 0,
+    blocks: [
+      { mode: "tabata", rounds: 1, work: 5, rest: 10 },
+      { mode: "rest", duration: 7, label: "Intentional recovery" },
+    ],
+  });
+  assert.deepEqual(
+    mix.map((p) => [p.kind, p.duration]),
+    [
+      ["work", 5],
+      ["rest", 7],
+    ],
+  );
 });
 test("interval workouts end on work and sets rest only between sets", () => {
   assert.equal(length({ mode: "interval", work: 10, rest: 5, rounds: 3 }), 40);
@@ -143,10 +191,10 @@ test("small browser ticks retain exact millisecond timing at phase boundaries", 
     rounds: 2,
   });
   let run = running();
-  for (let i = 0; i < 190; i++) run = advanceRun(run, 0.1, phases);
+  for (let i = 0; i < 150; i++) run = advanceRun(run, 0.1, phases);
   assert.equal(run.status, "complete");
-  assert.equal(run.elapsed, 16);
-  assert.equal(formatTime(run.elapsed, true), "00:16");
+  assert.equal(run.elapsed, 12);
+  assert.equal(formatTime(run.elapsed, true), "00:12");
 });
 
 test("completed intervals are counted without requiring manual lap taps", () => {

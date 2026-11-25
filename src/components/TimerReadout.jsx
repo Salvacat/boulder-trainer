@@ -41,19 +41,23 @@ export default function TimerReadout({
           <span />
           {done ? "Finished" : run.status === "paused" ? "Paused" : "Running"}
         </span>
-        <p>
+        <p className="wt-cycle-position">
           {deathRound ? (
             <>
-              Round <strong>{deathRound}</strong>
+              <span className="wt-cycle-label">Round</span>{" "}
+              <strong className="wt-cycle-number">{deathRound}</strong>
             </>
           ) : phase?.round ? (
             <>
-              Round <strong>{phase.round}</strong> of {phase.rounds}
+              <span className="wt-cycle-label">Round</span>{" "}
+              <strong className="wt-cycle-number">{phase.round}</strong>{" "}
+              <span className="wt-cycle-total">of {phase.rounds}</span>
             </>
           ) : config.mode === "mix" ? (
             <>
-              Block <strong>{phase?.block || 1}</strong> of{" "}
-              {config.blocks.length}
+              <span className="wt-cycle-label">Block</span>{" "}
+              <strong className="wt-cycle-number">{phase?.block || 1}</strong>{" "}
+              <span className="wt-cycle-total">of {config.blocks.length}</span>
             </>
           ) : (
             "Your rhythm"

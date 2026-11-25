@@ -72,6 +72,7 @@ export default function TimerCueSettings({
       </div>
       <div className="wt-cue-toggles">
         {[
+          ["announceRoundEnd", "Also say ‘Round X complete’ at the end"],
           ["countdown", "Spoken countdown / last 3 seconds"],
           ["haptics", "Vibration"],
           ["halfway", "Halfway announcement"],

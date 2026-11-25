@@ -86,8 +86,8 @@ export function buildPhases(raw) {
       if (c.mode === "interval" || c.mode === "tabata") {
         for (let round = 1; round <= c.rounds; round++) {
           add(c.work, "work", label, { ...meta, round, rounds: c.rounds });
-          // Tabata includes its final recovery; intervals finish on the final work period.
-          if (round < c.rounds || c.mode === "tabata")
+          // Finish each set on work; only the explicit set rest separates sets.
+          if (round < c.rounds)
             add(c.rest, "rest", "Recovery", {
               ...meta,
               round,

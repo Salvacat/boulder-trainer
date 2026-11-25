@@ -40,6 +40,7 @@ const defaults = {
   volume: 60,
   voice: true,
   voiceURI: "",
+  announceRoundEnd: false,
   haptics: true,
   countdown: true,
   halfway: true,
@@ -329,11 +330,13 @@ export default function WorkoutTimer({
           index * 0.32,
         ),
       );
-    if (settings.voice && window.speechSynthesis) {
+    const words = events
+      .map((e) => e.words)
+      .filter(Boolean)
+      .join(". ");
+    if (settings.voice && window.speechSynthesis && words) {
       window.speechSynthesis.cancel();
-      const speech = new SpeechSynthesisUtterance(
-        events.map((e) => e.words).join(". "),
-      );
+      const speech = new SpeechSynthesisUtterance(words);
       speech.voice =
         voices.find((v) => v.voiceURI === settings.voiceURI) || null;
       speech.volume = Math.min(1, Math.max(0, Number(settings.volume) / 100));

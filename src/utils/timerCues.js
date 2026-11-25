@@ -43,7 +43,14 @@ export function selectTimerCues(before, now, options = {}) {
       before.status === "running" &&
       before.kind === "work" &&
       now.index <= before.index + 1
-        ? [{ type: "repEnd", words: "Round complete" }]
+        ? [
+            {
+              type: "repEnd",
+              words: options.announceRoundEnd
+                ? `Round${before.round ? ` ${before.round}` : ""} complete`
+                : "",
+            },
+          ]
         : [];
     if (
       now.kind === "prepare" &&
@@ -62,7 +69,7 @@ export function selectTimerCues(before, now, options = {}) {
       type === "prepare" ? "Get ready" : type === "rest" ? "Rest" : "Work";
     cues.push({
       type,
-      words: `${before.status === "paused" ? "Resume. " : ""}${word}${now.round ? `. Round ${now.round}` : ""}${now.label && !["Work", "Rest", "Recovery", "Get ready", "AMRAP", "EMOM", "Tabata", "For Time", "Intervals", "Countdown", "Stopwatch"].includes(now.label) ? `. ${now.label}` : ""}`,
+      words: `${before.status === "paused" ? "Resume. " : ""}${word}${type === "work" && now.round && before.status !== "paused" ? `. Round ${now.round}` : ""}${now.label && !["Work", "Rest", "Recovery", "Get ready", "AMRAP", "EMOM", "Tabata", "For Time", "Intervals", "Countdown", "Stopwatch"].includes(now.label) ? `. ${now.label}` : ""}`,
     });
     return cues;
   }
