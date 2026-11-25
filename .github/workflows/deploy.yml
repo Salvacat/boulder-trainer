@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -16,6 +17,8 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    env:
+      PAGES_ARTIFACT: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -46,7 +49,36 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
+          name: ${{ env.PAGES_ARTIFACT }}
+
+      - name: Wait for artifact visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const url = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/artifacts?per_page=100`;
+          let visible = false;
+          for (let attempt = 0; attempt < 12; attempt++) {
+            const response = await fetch(url, {
+              headers: {
+                Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                Accept: 'application/vnd.github+json',
+              },
+            });
+            if (!response.ok) throw new Error(`Artifact lookup failed: HTTP ${response.status}`);
+            const result = await response.json();
+            if (result.artifacts?.some(a => a.name === process.env.PAGES_ARTIFACT && !a.expired)) {
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              visible = true;
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+          if (!visible) throw new Error('Uploaded Pages artifact is not yet visible. Retry this job.');
+          NODE
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT }}
